@@ -416,11 +416,9 @@ export default function Page(){
       <header className="sticky top-0 z-30 bg-parchment/80 backdrop-blur border-b border-stone/10">
         <div className="max-w-[1600px] mx-auto px-8 h-[68px] flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-9 h-9 rounded-[10px] bg-ink flex items-center justify-center">
-              <span className="font-display text-parchment text-[18px] tracking-tight">◈</span>
-            </div>
+            <img src="/collara-logo.svg" alt="Collara" className="w-11 h-11 rounded-[12px] shadow-sm" />
             <div>
-              <div className="font-display text-[20px] leading-none tracking-[-0.02em]">Collara</div>
+              <div className="font-display text-[26px] leading-none tracking-[-0.03em]">Collara</div>
               <div className="text-[11px] tracking-[0.14em] uppercase text-stone/60 -mt-1">Reputation Credit • GenLayer</div>
             </div>
             <span className="hidden md:inline-flex ml-4 px-3 py-1 rounded-full border border-brass/30 bg-brass/10 text-[11px] tracking-[0.08em] uppercase font-medium">{CONTRACT.slice(0,6)}…{CONTRACT.slice(-4)}</span>
