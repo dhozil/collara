@@ -27,6 +27,11 @@ function parseAtto(gen:string){
     return BigInt(Math.floor(n*1e18))
   }catch{ return BigInt(0) }
 }
+function fmtGen(atto:any){
+  const n = Number(atto)/1e18
+  const s = n.toFixed(3)
+  return s.replace(/\.?0+$/,"") 
+}
 function toBigInt(v:any){
   try{
     if(v===undefined||v===null||v==="") return BigInt(0)
@@ -791,7 +796,7 @@ export default function Page(){
                       <div key={String(l.id)} className="px-6 py-4 flex flex-wrap items-center gap-4">
                         <div className="min-w-[180px]">
                           <div className="text-xs font-mono">Loan #{String(l.id)} • <span className={`px-2 py-0.5 rounded-full text-[11px] ${String(l.status)==="active"?"bg-sage/15 text-sage":String(l.status)==="repaid"?"bg-brass/20 text-ink":"bg-stone/10"}`}>{String(l.status)}</span></div>
-                          <div className="text-sm mt-1"><span className="font-mono font-medium">{(Number(l.principal_atto)/1e18).toFixed(3)} GEN</span> <span className="text-stone/50">principal</span> • <span className="font-mono">{(Number(l.collateral_atto||0)/1e18).toFixed(3)} GEN collateral</span></div>
+                          <div className="text-sm mt-1"><span className="font-mono font-medium">{fmtGen(l.principal_atto)} GEN</span> <span className="text-stone/50">principal</span> • <span className="font-mono">{fmtGen(l.collateral_atto||0)} GEN collateral</span></div>
                           <div className="text-xs text-stone/50 font-mono">score {String(l.reputation_score||"?")} • {Number(l.interest_bps||0)/100}% • {String(l.duration_days||"?")}d • {String(l.borrower).slice(0,10)}…</div>
                         </div>
                         <div className="ml-auto flex gap-2">
