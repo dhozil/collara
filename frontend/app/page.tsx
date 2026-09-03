@@ -54,6 +54,7 @@ export default function Page(){
   const [client, setClient] = useState<any>(null)
   const [pool, setPool] = useState<{tvl:string,count:number,fees:string}|null>(null)
   const [myLiq, setMyLiq] = useState<string>("0.000")
+  const [myLoans, setMyLoans] = useState<any[]>([])
   const [msg, setMsg] = useState<string>("")
   const [loading, setLoading] = useState<string | null>(null)
   const [explorerResult, setExplorerResult] = useState<{status:string, payload:string} | null>(null)
@@ -132,6 +133,25 @@ export default function Page(){
       if(m.includes("Connect EVM")) return
       setMsg(m.slice(0,120) || "read failed")
     }
+  }
+  async function fetchLoans(){
+    try{
+      const c = await ensureClient()
+      const r:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_all_loans", args: [] })
+      if(Array.isArray(r)){
+        const mine = r.filter((l:any)=> String(l.borrower).toLowerCase()===String(connected||"").toLowerCase())
+        const enriched:any[]=[]
+        for(const l of (mine.length? mine: r).slice(0,12)){
+          try{
+            const d:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_loan", args: [toBigInt(l.id)] })
+            enriched.push(d)
+          }catch{ enriched.push(l) }
+          await new Promise(x=> setTimeout(x, 400))
+        }
+        setMyLoans(enriched)
+        setMsg(`Fetched ${r.length} loans on-chain (${mine.length} yours)`)
+      }
+    }catch(e:any){ setMsg(e.message?.slice(0,150) || "fetch loans failed")}
   }
   async function fetchMyLiq(){
     const who = connected as string | null
@@ -217,6 +237,7 @@ export default function Page(){
   }
   useEffect(()=>{ if(connected){ fetchPool(); } },[connected])
   useEffect(()=>{ if(connected && tab==="vault") fetchMyLiq() },[connected, tab])
+  useEffect(()=>{ if(connected && tab==="loans") fetchLoans() },[connected, tab])
   useEffect(()=>{ if(connected && tab==="identity" && fetchedForRef.addr!==connected) fetchIdentity(false) },[connected, tab])
 
   function isAllowedHost(url:string){
@@ -756,33 +777,56 @@ export default function Page(){
               <div className="rounded-2xl bg-white border border-stone/10 overflow-hidden">
                 <div className="px-6 py-4 flex items-center justify-between border-b border-stone/10">
                   <h2 className="font-display text-xl">Active covenants — on-chain</h2>
-                  <button onClick={async()=>{
-                    try{
-                      const c = await ensureClient()
-                      const r:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_all_loans", args: []})
-                      setMsg(`Fetched ${r.length} loans on-chain`)
-                    }catch(e:any){ setMsg(e.message?.slice(0,100) || "fetch failed")}
-                  }} className="text-xs px-3 py-1.5 rounded-full bg-ink text-parchment">Fetch on-chain</button>
+                  <button onClick={fetchLoans} className="text-xs px-3 py-1.5 rounded-full bg-ink text-parchment">Fetch on-chain</button>
                 </div>
-                <div className="px-6 py-12 text-center">
-                  <div className="text-sm text-stone/60">No mock loans — fetch `get_all_loans()` live</div>
-                  <div className="text-xs text-stone/40 mt-1">Contract: {CONTRACT.slice(0,10)}…</div>
-                </div>
-                <div className="px-6 py-4 bg-parchment flex flex-wrap gap-3">
-                  <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                    <input value={loanId} onChange={e=>setLoanId(e.target.value.replace(/[^0-9]/g,"").slice(0,10))} placeholder="loan id" className="w-28 px-3 py-2 rounded-xl border border-stone/15 bg-white font-mono text-sm" />
-                    <button onClick={doRepay} className="flex-1 py-2.5 rounded-xl bg-ink text-parchment text-sm font-medium cursor-pointer hover:bg-stone-800">{loading==="repay"?"Repaying…":"Repay on-chain"}</button>
+                {myLoans.length===0 ? (
+                  <div className="px-6 py-12 text-center">
+                    <div className="text-sm text-stone/60">No loans yet — fetch `get_all_loans()` live</div>
+                    <div className="text-xs text-stone/40 mt-1">Contract: {CONTRACT.slice(0,10)}… • {connected? connected.slice(0,10)+"…" : "Connect wallet"}</div>
+                    <button onClick={fetchLoans} className="mt-4 px-4 py-2 rounded-xl bg-brass text-ink text-xs font-medium">Load my loans</button>
                   </div>
-                  <button onClick={async()=>{
-                    if(!loanId || !String(loanId).trim()){ setMsg("Enter loanId"); return }
-                    setLoading("liq")
-                    try{
-                      const c = await ensureClient()
-                      const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "liquidate_loan", args: [toBigInt(loanId)]})
-                      setMsg(`liquidate tx ${String(tx).slice(0,18)}`)
-                    }catch(e:any){ setMsg(e.message?.slice(0,150) || "liquidate failed")}
-                    setLoading(null)
-                  }} className="px-5 py-2.5 rounded-xl bg-oxblood text-white text-sm font-medium cursor-pointer hover:bg-red-700">Liquidate</button>
+                ) : (
+                  <div className="divide-y divide-stone/10">
+                    {myLoans.map((l:any)=>(
+                      <div key={String(l.id)} className="px-6 py-4 flex flex-wrap items-center gap-4">
+                        <div className="min-w-[180px]">
+                          <div className="text-xs font-mono">Loan #{String(l.id)} • <span className={`px-2 py-0.5 rounded-full text-[11px] ${String(l.status)==="active"?"bg-sage/15 text-sage":String(l.status)==="repaid"?"bg-brass/20 text-ink":"bg-stone/10"}`}>{String(l.status)}</span></div>
+                          <div className="text-sm mt-1"><span className="font-mono font-medium">{(Number(l.principal_atto)/1e18).toFixed(3)} GEN</span> <span className="text-stone/50">principal</span> • <span className="font-mono">{(Number(l.collateral_atto||0)/1e18).toFixed(3)} GEN collateral</span></div>
+                          <div className="text-xs text-stone/50 font-mono">score {String(l.reputation_score||"?")} • {Number(l.interest_bps||0)/100}% • {String(l.duration_days||"?")}d • {String(l.borrower).slice(0,10)}…</div>
+                        </div>
+                        <div className="ml-auto flex gap-2">
+                          <button disabled={String(l.status)!=="active" || loading==="repay"} onClick={async()=>{
+                            setLoanId(String(l.id))
+                            setLoading("repay"); setMsg(""); setExplorerResult(null)
+                            try{
+                              const c = await getWriteClient()
+                              const loan:any = l
+                              const interest = (toBigInt(loan.principal_atto) * toBigInt(loan.interest_bps)) / toBigInt(10000)
+                              const total = toBigInt(loan.principal_atto) + interest
+                              const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "repay_loan", args: [toBigInt(l.id)], value: total })
+                              setMsg(`repay #${l.id} tx ${String(tx).slice(0,18)}… total ${(Number(total)/1e18).toFixed(4)} GEN — waiting`)
+                              setExplorerResult({status:"pending", payload:`Repay #${l.id} tx ${String(tx).slice(0,18)}…`})
+                              setTimeout(async()=>{ await fetchLoans(); setExplorerResult({status:"verified", payload:`✓ Repaid #${l.id}`}); setLoading(null)}, 7000)
+                            }catch(e:any){ const m=getErrMsg(e)||"repay failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m}); setLoading(null) }
+                          }} className="px-4 py-2 rounded-xl bg-ink text-parchment text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed">{loading==="repay"?"Repaying…":"Repay"}</button>
+                          <button disabled={String(l.status)!=="active"} onClick={async()=>{
+                            setLoading("liq")
+                            try{
+                              const c = await getWriteClient()
+                              const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "liquidate_loan", args: [toBigInt(l.id)]})
+                              setMsg(`liquidate #${l.id} tx ${String(tx).slice(0,18)}`)
+                              setTimeout(fetchLoans, 6500)
+                            }catch(e:any){ setMsg(e.message?.slice(0,150) || "liquidate failed")}
+                            setLoading(null)
+                          }} className="px-4 py-2 rounded-xl bg-oxblood text-white text-xs font-medium disabled:opacity-40">Liquidate</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="px-6 py-3 bg-parchment text-xs text-stone/50 flex gap-2">
+                  <span>Tip: klik <b>Repay</b> langsung di card — tidak perlu isi loan id manual.</span>
+                  <span className="ml-auto font-mono">{myLoans.length} shown • {CONTRACT.slice(0,8)}…</span>
                 </div>
               </div>
             </div>
