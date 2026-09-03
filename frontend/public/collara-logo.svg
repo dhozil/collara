@@ -1,0 +1,18 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="g" x1="40" y1="40" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+<stop stop-color="#C8A25A"/><stop offset="0.55" stop-color="#8AA899"/><stop offset="1" stop-color="#8B2D2B"/>
+</linearGradient>
+<filter id="f" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.15"/></filter>
+</defs>
+<rect width="240" height="240" rx="48" fill="#0F0E0D"/>
+<g filter="url(#f)">
+<!-- interlocked Cs - collara -->
+<path d="M 92 86 C 72 86 56 102 56 122 C 56 142 72 158 92 158 L 108 158 L 108 142 L 92 142 C 81 142 72 133 72 122 C 72 111 81 102 92 102 L 108 102 Z" fill="url(#g)"/>
+<path d="M 148 86 C 168 86 184 102 184 122 C 184 142 168 158 148 158 L 132 158 L 132 142 L 148 142 C 159 142 168 133 168 122 C 168 111 159 102 148 102 L 132 102 Z" fill="#F2EFE7" opacity="0.95"/>
+<!-- bridge -->
+<rect x="108" y="112" width="24" height="16" rx="8" fill="#F2EFE7"/>
+<circle cx="120" cy="120" r="5" fill="#0F0E0D"/>
+</g>
+<text x="120" y="195" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="13" letter-spacing="0.32em" fill="#F2EFE7" opacity="0.55">COLLARA</text>
+</svg>
