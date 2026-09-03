@@ -721,12 +721,21 @@ export default function Page(){
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                    <div><label className="text-[11px] tracking-[0.08em] uppercase text-stone/50">Principal (atto)</label><input value={(() => { try{ return toBigInt(Math.floor(principal*1e18)).toString() }catch{ return "0"} })()} readOnly className="mt-1 w-full px-3 py-2.5 rounded-xl border border-stone/15 bg-parchment font-mono" /></div>
-                    <div><label className="text-[11px] tracking-[0.08em] uppercase text-stone/50">Collateral (atto)</label><input value={required===null ? "" : (() => { try{ return toBigInt(Math.floor(required*1e18)).toString() }catch{ return ""}})()} readOnly placeholder="— need score" className="mt-1 w-full px-3 py-2.5 rounded-xl border border-stone/15 bg-brass/15 font-mono" /></div>
+                    <div><label className="text-[11px] tracking-[0.08em] uppercase text-stone/50">Principal (atto) — 1 GEN = 1e18</label><input value={(() => { try{ return toBigInt(Math.floor(principal*1e18)).toString() }catch{ return "0"} })()} readOnly className="mt-1 w-full px-3 py-2.5 rounded-xl border border-stone/15 bg-parchment font-mono text-[11px]" />
+                      <div className="text-[10px] text-stone/40 mt-1">{principal} GEN</div></div>
+                    <div><label className="text-[11px] tracking-[0.08em] uppercase text-stone/50">Collateral (atto) — wei</label><input value={required===null ? "" : (() => { try{ return toBigInt(Math.floor(required*1e18)).toString() }catch{ return ""}})()} readOnly placeholder="— need score" className="mt-1 w-full px-3 py-2.5 rounded-xl border border-stone/15 bg-brass/15 font-mono text-[11px]" />
+                      <div className="text-[10px] text-stone/40 mt-1">{required!==null? `${required} GEN` : "—"}</div></div>
                   </div>
 
-                  <button disabled={score===null || !vid || loading==="request"} onClick={doRequest} className="mt-4 w-full py-3 rounded-xl bg-brass text-ink font-medium disabled:opacity-40 disabled:cursor-not-allowed">{loading==="request"?"Sending…": required===null ? "need score" : `Request on-chain — send ${required} GEN`}</button>
-                  <div className="text-xs text-stone/50 mt-2 text-center">Real: `request_loan(verification_id, principal_atto, collateral_atto, duration)` with `value=collateral`</div>
+                  <button disabled={score===null || !vid || loading==="request"} onClick={doRequest} className="mt-4 w-full py-3 rounded-xl bg-brass text-ink font-medium disabled:opacity-40 disabled:cursor-not-allowed">{loading==="request"?"Sending… 8s": required===null ? "need score" : `Request on-chain — send ${required} GEN`}</button>
+                  {explorerResult && (
+                    <div className={`mt-3 rounded-xl border p-3 text-xs font-mono ${explorerResult.status==="verified"?"bg-sage/10 border-sage/20 text-sage":explorerResult.status==="rejected"?"bg-oxblood/10 border-oxblood/20 text-oxblood":"bg-parchment border-stone/15 text-stone/60"}`}>
+                      <div className="font-medium">{explorerResult.status==="verified"?"✓ Success — loan created":explorerResult.status==="rejected"?"✗ Failed":"Pending"}</div>
+                      <div className="mt-1 break-all">{explorerResult.payload.slice(0,600)}</div>
+                      {explorerResult.status==="verified" && <div className="mt-2 text-[11px]">Check <b>My Loans → Fetch on-chain</b> untuk lihat loan baru.</div>}
+                    </div>
+                  )}
+                  <div className="text-xs text-stone/50 mt-2 text-center">Real: `request_loan(vid, principal_atto, collateral_atto, duration)` dengan `value=collateral` • 1 GEN = 1e18 atto</div>
                 </div>
 
                 <div className="space-y-4">
