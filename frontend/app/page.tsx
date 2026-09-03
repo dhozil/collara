@@ -420,8 +420,8 @@ export default function Page(){
               <span className="font-display text-parchment text-[18px] tracking-tight">◈</span>
             </div>
             <div>
-              <div className="font-display text-[20px] leading-none tracking-[-0.02em]">Covenant</div>
-              <div className="text-[11px] tracking-[0.14em] uppercase text-stone/60 -mt-1">Reputation Lending • GenLayer</div>
+              <div className="font-display text-[20px] leading-none tracking-[-0.02em]">Collara</div>
+              <div className="text-[11px] tracking-[0.14em] uppercase text-stone/60 -mt-1">Reputation Credit • GenLayer</div>
             </div>
             <span className="hidden md:inline-flex ml-4 px-3 py-1 rounded-full border border-brass/30 bg-brass/10 text-[11px] tracking-[0.08em] uppercase font-medium">{CONTRACT.slice(0,6)}…{CONTRACT.slice(-4)}</span>
           </div>
@@ -448,7 +448,7 @@ export default function Page(){
               ["how","How it works","Step-by-step guide"],
               ["identity","Identity","Link real-world proof"],
               ["market","Market","Lend & borrow"],
-              ["loans","My Loans","Covenants active"],
+              ["loans","My Loans","Collara credits active"],
               ["vault","Vault","Liquidity & risk"],
             ].map(([k,label,desc])=>(
               <button key={k} onClick={()=>setTab(k as Tab)}
@@ -508,7 +508,7 @@ export default function Page(){
                     Borrow on <span className="italic font-normal text-brass">who you are,</span> not just what you lock.
                   </h1>
                   <p className="mt-5 max-w-[640px] text-[15px] text-parchment/70 leading-relaxed">
-                    Covenant links your real-world proof — X, GitHub, LinkedIn — to on-chain reputation via GenLayer LLM consensus. Higher standing → lower collateral, fairer rates, without centralized KYC.
+                    Collara links your real-world proof — X, GitHub, LinkedIn — to on-chain reputation via GenLayer LLM consensus. Higher standing → lower collateral, fairer rates, without centralized KYC.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-3">
                     <button onClick={()=>setTab("how")} className="px-7 py-3.5 rounded-full bg-brass text-ink font-medium">How it works →</button>
@@ -839,7 +839,7 @@ export default function Page(){
       </div>
 
       <footer className="max-w-[1600px] mx-auto px-8 py-8 text-xs text-stone/50 flex flex-wrap gap-4 border-t border-stone/10 mt-8">
-        <span>© Covenant — Real Studionet • No mock fallback</span>
+        <span>© Collara — Real Studionet • No mock fallback</span>
         <span className="ml-auto">Contract {CONTRACT.slice(0,8)}… • Studionet</span>
       </footer>
     </div>

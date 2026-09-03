@@ -1,30 +1,22 @@
-# Covenant Deployer Wallet
+# Collara Deployer Wallet
 
 **Khusus project ini — tidak pakai wallet global lain**
 
-- **Name:** `covenant-deployer`
-- **Address:** `0x325066f66816acd843940911e2456e2e9e11f569`
-- **Network:** Studionet (`https://studio-rpc.genlayer.com/api`)
-- **Balance:** `0 GEN` (butuh faucet)
-- **Keystore:** `C:\Users\dhozi\.genlayer\keystores\covenant-deployer.json`
-- **Password:** `covenant123`
-- **Contract deployed sebelumnya (cpe-v2):** `0x72FD866D99eB7a9A14b3e48E154c66aC5c4264e5`
-
-## Cara isi saldo
-
-Minta faucet ke address di atas:
-- Studionet: faucet internal Studio (jika ada) atau minta ke tim
-- Jika butuh test: `genlayer account send --to 0x325066f66816acd843940911e2456e2e9e11f569 --amount 1` dari akun `cpe-v2` yang ada 1.018 GEN
+- **Name:** `lending-clean` (aktif)
+- **Address:** `0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8`
+- **Network:** Studionet (`https://studio.genlayer.com/api`)
+- **Active Contract:** `0x737F198B83b57101CF1fcDfA7cf906d69b70E581` (tx `0xca725a9bd94b615e6015872845cf40172cdc72668f99e5e0fed0e686e84a06e7` 5x AGREE)
+- **Keystore:** `C:\Users\dhozi\.genlayer\keystores\lending-clean.json`
+- **Password:** `clean123`
+- **Previous:** `0xBa359c8a...`, `0x6e9e6b05...`, `0x4FdAd054...`
 
 ## Cara pakai
 
 ```bash
-genlayer account use covenant-deployer
-# unlock jika locked:
-genlayer account unlock --name covenant-deployer --password covenant123
-genlayer account show
+genlayer account use lending-clean
+genlayer account unlock --account lending-clean --password clean123
 genlayer deploy --contract "D:\Genlayer-project\lending\contracts\reputation_lending.py"
-genlayer call 0x72FD866D99eB7a9A14b3e48E154c66aC5c4264e5 get_pool_stats
+genlayer call 0x737F198B83b57101CF1fcDfA7cf906d69b70E581 get_pool_stats
 ```
 
-File ini + `.wallet.json` ada di folder project `D:\Genlayer-project\lending\` khusus untuk project Covenant.
+File ini + `.wallet.json` ada di folder project `D:\Genlayer-project\lending\` khusus untuk project Collara.

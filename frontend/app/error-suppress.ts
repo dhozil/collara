@@ -40,7 +40,7 @@ if (typeof window !== "undefined") {
     const m = String(e.reason?.message || e.reason || e.message || "")
     if (shouldSuppress(m)) {
       e.preventDefault()
-      console.warn("[Covenant] Suppressed wallet extension noise (Phantom/MetaMask):", m.slice(0,120))
+      console.warn("[Collara] Suppressed wallet extension noise (Phantom/MetaMask):", m.slice(0,120))
     }
   })
   window.addEventListener("error", (e: any) => {
