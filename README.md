@@ -23,7 +23,7 @@
 
 | | |
 |---|---|
-| **Contract** | `0x737F198B83b57101CF1fcDfA7cf906d69b70E581` — [Studio Explorer](https://studio.genlayer.com) |
+| **Contract** | `0x737F198B83b57101CF1fcDfA7cf906d69b70E581` — [Explorer](https://explorer-studio.genlayer.com/address/0x737F198B83b57101CF1fcDfA7cf906d69b70E581) |
 | **Tx** | `0xca725a9bd94b615e6015872845cf40172cdc72668f99e5e0fed0e686e84a06e7` — 5/5 AGREE |
 | **Deployer** | `lending-clean` `0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8` |
 | **Chain** | Studionet `61999` → `/api/genlayer` proxy (no CORS) |
