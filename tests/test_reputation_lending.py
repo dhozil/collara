@@ -33,10 +33,13 @@ def test_link_identity_binds_url_and_returns_id(direct_deploy, direct_vm):
     assert ident["proof_url"] == "https://x.com/alice/status/1lice/status/1"
 
 def test_concurrent_verifications_preserve_original_urls(direct_deploy, direct_vm):
+    import datetime
+
     direct_vm.mock_web(r".*", {"status": 200, "body": "handle wallet proof", "method": "GET"})
     direct_vm.mock_llm(r".*", json.dumps({"verified": True, "handle_match": True, "proof_fetched": True, "independent_fetched": True, "wallet_match": True, "reason": "ok"}))
     c = direct_deploy("contracts/reputation_lending.py")
     vid1 = c.link_identity(handle="alice", platform="x", proof_url="https://x.com/alice/status/1lice/status/1")
+    direct_vm.warp((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=3601)).isoformat().replace("+00:00", "Z"))
     vid2 = c.link_identity(handle="alice", platform="x", proof_url="https://x.com/alice/status/1lice/status/2")
     assert int(vid1) == 1
     assert int(vid2) == 2
@@ -103,9 +106,12 @@ def test_request_loan_uses_verification_snapshot(direct_deploy, direct_vm):
         direct_vm.mock_llm(r".*", json.dumps({"score": 80, "reason": "good", "proof_fetched": True, "independent_fetched": True}))
         c.assess_reputation(vid)
     with direct_vm.prank(borrower):
+        import datetime
+
         direct_vm.clear_mocks()
         direct_vm.mock_web(r".*", {"status": 200, "body": "bob proof wallet bob second", "method": "GET"})
         direct_vm.mock_llm(r".*", json.dumps({"verified": True, "handle_match": True, "proof_fetched": True, "independent_fetched": True, "wallet_match": True, "reason": "ok"}))
+        direct_vm.warp((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=3601)).isoformat().replace("+00:00", "Z"))
         vid2 = c.link_identity(handle="bob", platform="x", proof_url="https://x.com/bob/status/1ob/status/2")
     with direct_vm.prank(borrower):
         direct_vm.value = 700_000_000_000_000_000
@@ -180,6 +186,8 @@ def test_one_time_settlement_guards(direct_deploy, direct_vm):
         assert "not active" in str(e).lower()
 
 def test_timeout_settle_escapes_locked_funds(direct_deploy, direct_vm):
+    import datetime
+
     c = direct_deploy("contracts/reputation_lending.py")
     direct_vm.value = 10_000_000_000_000_000_000
     c.deposit_liquidity()
@@ -194,6 +202,9 @@ def test_timeout_settle_escapes_locked_funds(direct_deploy, direct_vm):
     direct_vm.value = 800_000_000_000_000_000
     c.request_loan(verification_id=vid, principal_atto=1_000_000_000_000_000_000, collateral_atto=800_000_000_000_000_000, duration_days=30)
     direct_vm.value = 0
+    loan = c.get_loan(1)
+    expiry = int(loan["expiry_at"])
+    direct_vm.warp(datetime.datetime.fromtimestamp(expiry + 1, tz=datetime.timezone.utc).isoformat().replace("+00:00", "Z"))
     c.timeout_settle(1)
     assert c.get_loan(1)["status"] == "defaulted"
     from genlayer.py.types import Address
@@ -260,10 +271,14 @@ def test_integer_division_no_float(direct_deploy, direct_vm):
     assert loan["collateral_atto"] == required
 
 def test_independent_verification_all_platforms(direct_deploy, direct_vm):
+    import datetime
+
     c = direct_deploy("contracts/reputation_lending.py")
     for platform, handle in [("x","alice"),("github","torvalds"),("linkedin","bob"),("farcaster","charlie")]:
         direct_vm.mock_web(r".*", {"status": 200, "body": f"{handle} wallet proof", "method": "GET"})
         direct_vm.mock_llm(r".*", json.dumps({"verified": True, "handle_match": True, "proof_fetched": True, "independent_fetched": True, "wallet_match": True, "reason": "ok"}))
+        if handle != "alice":
+            direct_vm.warp((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=3601)).isoformat().replace("+00:00", "Z"))
         vid = c.link_identity(handle=handle, platform=platform, proof_url=f"https://x.com/{handle}")
         assert c.get_verification(vid)["platform"] == platform
 

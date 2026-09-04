@@ -59,6 +59,12 @@ def _now_ts() -> int:
             return int(str(gl.message.timestamp))
     except Exception:
         pass
+    try:
+        import datetime
+
+        return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    except Exception:
+        pass
     return 0
 
 
@@ -358,10 +364,7 @@ class ReputationLending(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Amount must be > 0")
         if self.platform_fees_atto < amount_atto:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Insufficient fees")
-        if self.total_liquidity_atto < amount_atto:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Pool insufficient for fees")
         self.platform_fees_atto = self.platform_fees_atto - amount_atto
-        self.total_liquidity_atto = self.total_liquidity_atto - amount_atto
         _EoaTransfer(self.owner).emit_transfer(value=amount_atto)
 
     @gl.public.write
@@ -718,7 +721,9 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
             exp = int(loan.expiry_at)
         except Exception:
             exp = 0
-        if now != 0 and exp != 0 and now < exp:
+        if now == 0 or exp == 0:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot verify expiry — no valid production timestamp")
+        if now < exp:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not expired yet")
         borrower = loan.borrower
         score = int(self.reputation_scores.get(borrower, u256(50)))
@@ -740,7 +745,9 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
             exp = int(loan.expiry_at)
         except Exception:
             exp = 0
-        if now != 0 and exp != 0 and now < exp:
+        if now == 0 or exp == 0:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot verify expiry — no valid production timestamp")
+        if now < exp:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not expired yet")
         loan.status = "defaulted"
         self.loans[loan_id] = loan
@@ -867,7 +874,6 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
         if verdict == "borrower_win":
             loan.status = "repaid"
             self.loans[d.loan_id] = loan
-            self.total_liquidity_atto = self.total_liquidity_atto + loan.principal_atto
             _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
             cur = int(self.reputation_scores.get(loan.borrower, u256(50)))
             if cur < 97:
