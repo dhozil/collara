@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/dhozil/collara"><img src="https://img.shields.io/github/stars/dhozil/collara?style=flat&label=Stars" alt="stars"/></a>
   <img src="https://img.shields.io/badge/GenLayer-Studionet%2061999-0F0E0D?style=flat" alt="studionet"/>
-  <img src="https://img.shields.io/badge/Contract-0x737F…E581-C8A25A?style=flat" alt="contract"/>
+  <img src="https://img.shields.io/badge/Contract-0xDF864…e68-C8A25A?style=flat" alt="contract"/>
   <img src="https://img.shields.io/badge/Frontend-Next.js_14-black?style=flat" alt="next"/>
   <img src="https://img.shields.io/badge/License-MIT-F2EFE7?style=flat" alt="license"/>
 </p>
