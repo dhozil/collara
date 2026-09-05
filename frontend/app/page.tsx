@@ -453,17 +453,27 @@ export default function Page(){
   }
   async function doRepay(){
     if(!loanId || !String(loanId).trim()){ setMsg("Enter loanId"); return }
-    setLoading("repay"); setMsg("")
+    setLoading("repay"); setMsg(""); setExplorerResult(null)
     try{
-      const c = await ensureClient()
+      const c = await getWriteClient()
       const loan:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_loan", args: [toBigInt(loanId)] })
       if(!loan || loan.principal_atto===undefined){ setMsg("Loan not found"); setLoading(null); return }
       const interest = (toBigInt(loan.principal_atto) * toBigInt(loan.interest_bps)) / toBigInt(10000)
       const total = toBigInt(loan.principal_atto) + interest
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "repay_loan", args: [toBigInt(loanId)], value: total })
-      setMsg(`repay tx ${String(tx).slice(0,18)}… total ${(Number(total)/1e18).toFixed(4)} GEN — waiting`)
-      setTimeout(()=> setLoading(null), 8000)
-    }catch(e:any){ setMsg(getErrMsg(e) || "repay failed"); setLoading(null) }
+      setMsg(`repay tx ${String(tx).slice(0,18)}… total ${(Number(total)/1e18).toFixed(4)} GEN — waiting finality`)
+      setExplorerResult({status:"pending", payload:`Repay #${loanId} tx ${String(tx).slice(0,18)}… waiting receipt`})
+      const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+      if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Repay failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+      const loan2:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_loan", args: [toBigInt(loanId)] }).catch(()=>null)
+      const pool:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_pool_stats", args: [] }).catch(()=>null)
+      if(loan2 && pool){
+        setExplorerResult({status: loan2.status==="repaid"?"verified":"rejected", payload:`Repay #${loanId} ${loan2.status} — pool ${pool? Number(pool.total_liquidity_atto)/1e18 : "?"} GEN — tx ${String(tx)} — https://explorer-studio.genlayer.com/address/${CONTRACT}`})
+        setMsg(`Repay #${loanId} ${loan2.status} ✓ — tx ${String(tx).slice(0,18)}`)
+        await fetchLoans()
+      }
+      setLoading(null)
+    }catch(e:any){ const m=getErrMsg(e)||"repay failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m}); setLoading(null) }
   }
 
   return (
@@ -839,19 +849,31 @@ export default function Page(){
                               const interest = (toBigInt(loan.principal_atto) * toBigInt(loan.interest_bps)) / toBigInt(10000)
                               const total = toBigInt(loan.principal_atto) + interest
                               const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "repay_loan", args: [toBigInt(l.id)], value: total })
-                              setMsg(`repay #${l.id} tx ${String(tx).slice(0,18)}… total ${(Number(total)/1e18).toFixed(4)} GEN — waiting`)
-                              setExplorerResult({status:"pending", payload:`Repay #${l.id} tx ${String(tx).slice(0,18)}…`})
-                              setTimeout(async()=>{ await fetchLoans(); setExplorerResult({status:"verified", payload:`✓ Repaid #${l.id}`}); setLoading(null)}, 7000)
+                              setMsg(`repay #${l.id} tx ${String(tx).slice(0,18)}… total ${(Number(total)/1e18).toFixed(4)} GEN — waiting finality`)
+                              setExplorerResult({status:"pending", payload:`Repay #${l.id} tx ${String(tx).slice(0,18)}… waiting receipt`})
+                              const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+                              if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Repay failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+                              const loan2:any = await c.readContract({address:CONTRACT, functionName:"get_loan", args:[toBigInt(l.id)]}).catch(()=>null)
+                              const pool:any = await c.readContract({address:CONTRACT, functionName:"get_pool_stats", args:[]}).catch(()=>null)
+                              if(loan2) setExplorerResult({status: loan2.status==="repaid"?"verified":"rejected", payload:`Repay #${l.id} ${loan2.status} — pool ${pool? Number(pool.total_liquidity_atto)/1e18 : "?"} GEN — tx ${String(tx)} — https://explorer-studio.genlayer.com/address/${CONTRACT}`})
+                              await fetchLoans()
+                              setLoading(null)
                             }catch(e:any){ const m=getErrMsg(e)||"repay failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m}); setLoading(null) }
                           }} className="px-4 py-2 rounded-xl bg-ink text-parchment text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed">{loading==="repay"?"Repaying…":"Repay"}</button>
                           <button disabled={String(l.status)!=="active"} onClick={async()=>{
-                            setLoading("liq")
+                            setLoading("liq"); setExplorerResult(null)
                             try{
                               const c = await getWriteClient()
                               const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "liquidate_loan", args: [toBigInt(l.id)]})
-                              setMsg(`liquidate #${l.id} tx ${String(tx).slice(0,18)}`)
-                              setTimeout(fetchLoans, 6500)
-                            }catch(e:any){ setMsg(e.message?.slice(0,150) || "liquidate failed")}
+                              setMsg(`liquidate #${l.id} tx ${String(tx).slice(0,18)}… waiting finality`)
+                              setExplorerResult({status:"pending", payload:`Liquidate #${l.id} tx ${String(tx).slice(0,18)}… waiting receipt`})
+                              const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+                              if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Liquidate failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+                              const loan2:any = await c.readContract({address:CONTRACT, functionName:"get_loan", args:[toBigInt(l.id)]}).catch(()=>null)
+                              const pool:any = await c.readContract({address:CONTRACT, functionName:"get_pool_stats", args:[]}).catch(()=>null)
+                              if(loan2) setExplorerResult({status: loan2.status==="liquidated"?"verified":"rejected", payload:`Liquidate #${l.id} ${loan2.status} — pool ${pool? Number(pool.total_liquidity_atto)/1e18 : "?"} GEN — tx ${String(tx)}`})
+                              await fetchLoans()
+                            }catch(e:any){ const m=getErrMsg(e)||"liquidate failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m})}
                             setLoading(null)
                           }} className="px-4 py-2 rounded-xl bg-oxblood text-white text-xs font-medium disabled:opacity-40">Liquidate</button>
                         </div>
@@ -902,9 +924,15 @@ export default function Page(){
                       try{
                         const c = await getWriteClient()
                         const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "withdraw_liquidity", args: [toBigInt(atto)]})
-                        setMsg(`withdraw tx ${String(tx).slice(0,18)}… waiting`)
-                        setExplorerResult({status:"pending", payload:`Withdraw ${v} GEN (${atto} atto) — tx ${String(tx).slice(0,18)}`})
-                        setTimeout(async()=>{ await fetchPool(); await fetchMyLiq(); setExplorerResult({status:"verified", payload:`✓ Withdraw confirmed`}); setLoading(null) }, 7000)
+                        setMsg(`withdraw tx ${String(tx).slice(0,18)}… waiting finality`)
+                        setExplorerResult({status:"pending", payload:`Withdraw ${v} GEN (${atto} atto) — tx ${String(tx).slice(0,18)}… waiting receipt`})
+                        const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+                        if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Withdraw failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+                        await fetchPool(); await fetchMyLiq()
+                        const liq:any = await c.readContract({address:CONTRACT, functionName:"get_liquidity", args:[connected as `0x${string}`]}).catch(()=>null)
+                        setExplorerResult({status:"verified", payload:`✓ Withdraw ${v} GEN confirmed — your ${liq? Number(liq.balance_atto)/1e18 : "?"} GEN — tx ${String(tx)} — https://explorer-studio.genlayer.com/address/${CONTRACT}`})
+                        setMsg(`Withdraw ${v} GEN success ✓`)
+                        setLoading(null)
                       }catch(e:any){ const m=getErrMsg(e)||"withdraw failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m}); setLoading(null) }
                     }} disabled={loading==="withdraw"} className="mt-2 w-full py-2.5 rounded-xl bg-white border border-stone/15 text-sm cursor-pointer hover:bg-parchment disabled:opacity-40 disabled:cursor-not-allowed">{loading==="withdraw"?"Withdrawing…":"withdraw_liquidity on-chain"}</button>
                   </div>

@@ -1,9 +1,9 @@
 {
   "network": "studionet",
   "rpc": "https://studio.genlayer.com/api",
-  "activeContract": "0x00dB8564b3e7F5850458FbFAcFd523dFF42373B5",
-  "activeTx": "0x146ed07157fe3ded760d66222470f57f5e77c046683d52d9c4ccdaeecb1af8a5",
+  "activeContract": "0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb",
+  "activeTx": "0x0210807d1331d79995a1c43cea3dcb0aab80cb65b5635c3dc93dd67819f06907",
   "deployer": "lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8",
-  "features": "steward final no local-clock + receipt verify + 22 PASS, deposit tx 0x2239...",
-  "previous": ["0xDF864A614C0eAaD4aC91817f7F89028F0d864e68"]
+  "features": "steward final no local-clock + receipt verify + 22 PASS",
+  "previous": ["0x00dB8564b3e7F5850458FbFAcFd523dFF42373B5"]
 }

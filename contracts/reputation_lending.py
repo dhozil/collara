@@ -672,7 +672,9 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
             interest_bps = 1200
         loan_id = self.next_loan_id
         now2 = _now_ts_testable(self)
-        expiry_abs = now2 + int(duration_days) * 86400 if now2 != 0 else int(duration_days) * 86400
+        if now2 == 0:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot verify expiry — no valid production timestamp")
+        expiry_abs = now2 + int(duration_days) * 86400
         expiry = str(expiry_abs)
         self.loans[loan_id] = Loan(
             borrower=sender,
