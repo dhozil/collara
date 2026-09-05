@@ -1,9 +1,9 @@
 {
   "network": "studionet",
   "rpc": "https://studio.genlayer.com/api",
-  "activeContract": "0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb",
-  "activeTx": "0x0210807d1331d79995a1c43cea3dcb0aab80cb65b5635c3dc93dd67819f06907",
+  "activeContract": "0x8791dFC9DB4E840a09a8078d922b0366A326770a",
+  "activeTx": "0x746e50a43e3ecaa9ed97427eb11d344082d9e314e7ce5267861ae23d63886b57",
   "deployer": "lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8",
-  "features": "steward final no local-clock + receipt verify + 22 PASS",
-  "previous": ["0x00dB8564b3e7F5850458FbFAcFd523dFF42373B5"]
+  "features": "restore datetime fallback (production timestamp) + fail-closed via test_timestamp, 22 PASS",
+  "previous": ["0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb"]
 }

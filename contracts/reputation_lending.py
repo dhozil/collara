@@ -63,6 +63,12 @@ def _now_ts() -> int:
             return int(str(_gl3.message.timestamp))
     except Exception:
         pass
+    try:
+        import datetime
+
+        return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    except Exception:
+        pass
     return 0
 
 

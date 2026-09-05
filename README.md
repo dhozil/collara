@@ -23,7 +23,7 @@
 
 | | |
 |---|---|
-| **Contract** | `0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb` — [Explorer](https://explorer-studio.genlayer.com/address/0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb) |
+| **Contract** | `0x8791dFC9DB4E840a09a8078d922b0366A326770a` — [Explorer](https://explorer-studio.genlayer.com/address/0x8791dFC9DB4E840a09a8078d922b0366A326770a) |
 | **Tx** | `0xca725a9bd94b615e6015872845cf40172cdc72668f99e5e0fed0e686e84a06e7` — 5/5 AGREE |
 | **Deployer** | `lending-clean` `0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8` |
 | **Chain** | Studionet `61999` → `/api/genlayer` proxy (no CORS) |
@@ -99,7 +99,7 @@ genlayer deploy --contract contracts/reputation_lending.py
 cd frontend
 npm install
 cat > .env.local <<'ENV'
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x8791dFC9DB4E840a09a8078d922b0366A326770a
 NEXT_PUBLIC_RPC_URL=https://studio.genlayer.com/api
 NEXT_PUBLIC_NETWORK=studionet
 ENV
@@ -112,7 +112,7 @@ npm run build
 Set in Vercel → Settings → Environment Variables:
 
 ```
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x8791dFC9DB4E840a09a8078d922b0366A326770a
 NEXT_PUBLIC_RPC_URL=https://studio.genlayer.com/api
 NEXT_PUBLIC_NETWORK=studionet
 NEXT_PUBLIC_OWNER=0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8

@@ -342,8 +342,7 @@ export default function Page(){
     try{
       const c = await getWriteClient()
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "assess_reputation", args: [toBigInt(vid)] })
-      setMsg(`assess tx ${String(tx).slice(0,20)}… — waiting finality`)
-      setExplorerResult({status:"pending", payload:`Assess vid=${vid} tx ${String(tx).slice(0,18)}… waiting receipt`})
+      setMsg(`assess tx ${String(tx).slice(0,20)}… — waiting finality (8-12s)`)
       try{
         const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,9000))
         if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Assess failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
@@ -375,8 +374,7 @@ export default function Page(){
     try{
       const c = await getWriteClient()
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "deposit_liquidity", args: [], value: parseAtto(amt) })
-      setMsg(`deposit ${amt} GEN tx ${String(tx).slice(0,18)}… — waiting finality`)
-      setExplorerResult({status:"pending", payload:`Deposited ${amt} GEN — tx ${String(tx).slice(0,18)}… waiting receipt`})
+      setMsg(`deposit ${amt} GEN tx ${String(tx).slice(0,18)}… — waiting finality (8-12s)`)
       try{
         const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
         const statusOk = !receipt || receipt.statusName==="ACCEPTED" || receipt.statusName==="FINALIZED" || receipt.status===5 || receipt.status==="success"
@@ -425,8 +423,8 @@ export default function Page(){
       const princ = parseAtto(String(principal))
       const coll = parseAtto(String(required!))
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "request_loan", args: [toBigInt(vid), princ, coll, toBigInt(duration)], value: coll })
-      setMsg(`request loan tx ${String(tx).slice(0,18)}… collateral ${required} GEN — waiting finality`)
-      setExplorerResult({status:"pending", payload:`Request tx ${String(tx).slice(0,18)}… waiting receipt`})
+      setMsg(`request loan tx ${String(tx).slice(0,18)}… collateral ${required} GEN — waiting finality (8-12s)`)
+      // keep loading, don't show pending card yet — wait for receipt
       try{
         const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
         if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Request failed: ${receipt.statusName}/${receipt.txExecutionResultName} — ${receipt.txExecutionResult || ""}`)
