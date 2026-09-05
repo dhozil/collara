@@ -186,8 +186,6 @@ def test_one_time_settlement_guards(direct_deploy, direct_vm):
         assert "not active" in str(e).lower()
 
 def test_timeout_settle_escapes_locked_funds(direct_deploy, direct_vm):
-    import datetime
-
     c = direct_deploy("contracts/reputation_lending.py")
     direct_vm.value = 10_000_000_000_000_000_000
     c.deposit_liquidity()
@@ -204,7 +202,7 @@ def test_timeout_settle_escapes_locked_funds(direct_deploy, direct_vm):
     direct_vm.value = 0
     loan = c.get_loan(1)
     expiry = int(loan["expiry_at"])
-    direct_vm.warp(datetime.datetime.fromtimestamp(expiry + 1, tz=datetime.timezone.utc).isoformat().replace("+00:00", "Z"))
+    c.admin_set_test_timestamp(expiry + 1)
     c.timeout_settle(1)
     assert c.get_loan(1)["status"] == "defaulted"
     from genlayer.py.types import Address

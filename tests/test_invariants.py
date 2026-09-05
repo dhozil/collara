@@ -97,8 +97,6 @@ def test_borrower_win_dispute_does_not_create_liquidity(direct_deploy, direct_vm
     assert c.get_platform_fees()["fees_atto"] == 0
 
 def test_expiry_absolute_and_liquidation_after_expiry(direct_deploy, direct_vm):
-    import datetime
-
     c = direct_deploy("contracts/reputation_lending.py")
     direct_vm.value = 10_000_000_000_000_000_000
     c.deposit_liquidity()
@@ -116,9 +114,8 @@ def test_expiry_absolute_and_liquidation_after_expiry(direct_deploy, direct_vm):
     loan = c.get_loan(1)
     expiry = int(loan["expiry_at"])
     assert expiry > 86400
-    if hasattr(direct_vm, "warp"):
-        direct_vm.warp(datetime.datetime.fromtimestamp(expiry + 1, tz=datetime.timezone.utc).isoformat().replace("+00:00", "Z"))
-        pool_before = c.get_pool_stats()["total_liquidity_atto"]
-        c.liquidate_loan(1)
-        assert c.get_loan(1)["status"] == "liquidated"
-        assert c.get_pool_stats()["total_liquidity_atto"] == pool_before + 700_000_000_000_000_000
+    c.admin_set_test_timestamp(expiry + 1)
+    pool_before = c.get_pool_stats()["total_liquidity_atto"]
+    c.liquidate_loan(1)
+    assert c.get_loan(1)["status"] == "liquidated"
+    assert c.get_pool_stats()["total_liquidity_atto"] == pool_before + 700_000_000_000_000_000

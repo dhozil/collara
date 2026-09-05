@@ -342,18 +342,24 @@ export default function Page(){
     try{
       const c = await getWriteClient()
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "assess_reputation", args: [toBigInt(vid)] })
-      setMsg(`assess tx ${String(tx).slice(0,20)}… — waiting consensus`)
-      setTimeout(async()=>{
-        try{
-          const r:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_verification", args: [toBigInt(vid)] })
-          if(r && r.score!==undefined){
-            setScore(Number(r.score))
-            setExplorerResult({status:"verified", payload:`Score ${r.score} for vid=${vid} — ${r.reason||""}`.slice(0,500)})
-            setMsg(`Scored ${r.score} on-chain ✓`)
-          }
-        }catch(e:any){ setExplorerResult({status:"rejected", payload: getErrMsg(e)||"assess read failed"})}
-        setLoading(null)
-      }, 9000)
+      setMsg(`assess tx ${String(tx).slice(0,20)}… — waiting finality`)
+      setExplorerResult({status:"pending", payload:`Assess vid=${vid} tx ${String(tx).slice(0,18)}… waiting receipt`})
+      try{
+        const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,9000))
+        if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Assess failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+      }catch(e:any){
+        const m=getErrMsg(e)
+        if(m.includes("failed") || m.includes("reverted")) throw e
+      }
+      const r:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_verification", args: [toBigInt(vid)] })
+      if(r && r.score!==undefined){
+        setScore(Number(r.score))
+        setExplorerResult({status:"verified", payload:`Score ${r.score} for vid=${vid} — ${r.reason||""} — tx ${String(tx).slice(0,18)} — https://explorer-studio.genlayer.com/address/${CONTRACT}`.slice(0,600)})
+        setMsg(`Scored ${r.score} on-chain ✓ — tx ${String(tx).slice(0,18)}`)
+      } else {
+        setExplorerResult({status:"rejected", payload:`Assess tx ${String(tx)} succeeded but no score yet — retry`})
+      }
+      setLoading(null)
     }catch(e:any){
       const m=getErrMsg(e)||"assess failed"
       setExplorerResult({status:"rejected", payload:m})
@@ -369,16 +375,29 @@ export default function Page(){
     try{
       const c = await getWriteClient()
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "deposit_liquidity", args: [], value: parseAtto(amt) })
-      setMsg(`deposit ${amt} GEN tx ${String(tx).slice(0,18)}… — waiting consensus`)
-      setExplorerResult({status:"pending", payload:`Deposited ${amt} GEN — tx ${String(tx).slice(0,18)}… waiting 7s`})
-      setTimeout(async()=>{
-        try{
-          await fetchPool(); await fetchMyLiq()
-          setExplorerResult({status:"verified", payload:`✓ Deposit ${amt} GEN confirmed — tx ${String(tx).slice(0,22)} → refreshed`})
-          setMsg(`Deposit ${amt} GEN success ✓`)
-        }catch{}
-        setLoading(null)
-      }, 7500)
+      setMsg(`deposit ${amt} GEN tx ${String(tx).slice(0,18)}… — waiting finality`)
+      setExplorerResult({status:"pending", payload:`Deposited ${amt} GEN — tx ${String(tx).slice(0,18)}… waiting receipt`})
+      try{
+        const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+        const statusOk = !receipt || receipt.statusName==="ACCEPTED" || receipt.statusName==="FINALIZED" || receipt.status===5 || receipt.status==="success"
+        if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Tx failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+        if(!statusOk && receipt) throw new Error(`Tx not accepted: ${receipt.statusName}`)
+      }catch(e:any){
+        const m=getErrMsg(e)
+        if(m.includes("failed") || m.includes("reverted")) throw e
+      }
+      await fetchPool()
+      await fetchMyLiq()
+      const liqOk = await c.readContract({address:CONTRACT, functionName:"get_liquidity", args:[connected as `0x${string}`]}).catch(()=>null) as any
+      const poolOk = await c.readContract({address:CONTRACT, functionName:"get_pool_stats", args:[]}).catch(()=>null) as any
+      if(liqOk && poolOk){
+        setExplorerResult({status:"verified", payload:`✓ Deposit ${amt} GEN confirmed — tx ${String(tx)} → pool ${Number(poolOk.total_liquidity_atto)/1e18} GEN, your ${Number(liqOk.balance_atto)/1e18} GEN — https://explorer-studio.genlayer.com/address/${CONTRACT}`})
+        setMsg(`Deposit ${amt} GEN success ✓ — tx ${String(tx).slice(0,18)}`)
+      } else {
+        setExplorerResult({status:"verified", payload:`✓ Deposit ${amt} GEN tx ${String(tx)} — refreshed`})
+        setMsg(`Deposit ${amt} GEN success ✓`)
+      }
+      setLoading(null)
     }catch(e:any){
       const m=getErrMsg(e) || "deposit failed"
       setMsg(m); setExplorerResult({status:"rejected", payload:m})
@@ -406,15 +425,26 @@ export default function Page(){
       const princ = parseAtto(String(principal))
       const coll = parseAtto(String(required!))
       const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "request_loan", args: [toBigInt(vid), princ, coll, toBigInt(duration)], value: coll })
-      setMsg(`request loan tx ${String(tx).slice(0,18)}… collateral ${required} GEN — waiting`)
-      setTimeout(async()=>{
-        try{
-          const all:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_all_loans", args: [] })
-          if(Array.isArray(all) && all.length>0) setExplorerResult({status:"verified", payload:`✓ Loan created — ${all.length} total on-chain. Latest: ${JSON.stringify(all[all.length-1]).slice(0,300)}`})
-          else setExplorerResult({status:"pending", payload:`Tx ${String(tx).slice(0,18)} sent — waiting finalization, check explorer.`})
-        }catch{ setExplorerResult({status:"pending", payload:`Tx ${String(tx).slice(0,18)} sent — check explorer for result.`})}
-        setLoading(null)
-      }, 8000)
+      setMsg(`request loan tx ${String(tx).slice(0,18)}… collateral ${required} GEN — waiting finality`)
+      setExplorerResult({status:"pending", payload:`Request tx ${String(tx).slice(0,18)}… waiting receipt`})
+      try{
+        const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+        if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Request failed: ${receipt.statusName}/${receipt.txExecutionResultName} — ${receipt.txExecutionResult || ""}`)
+      }catch(e:any){
+        const m=getErrMsg(e)
+        if(m.includes("failed") || m.includes("Insufficient") || m.includes("stale") || m.includes("not verified") || m.includes("not owned")) throw e
+      }
+      const all:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_all_loans", args: [] }).catch(()=>[]) as any
+      const pool2:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_pool_stats", args: [] }).catch(()=>null) as any
+      if(Array.isArray(all) && all.length>0){
+        const latest=all[all.length-1]
+        setExplorerResult({status:"verified", payload:`✓ Loan #${latest.id} created — ${all.length} total on-chain. Pool TVL ${pool2? Number(pool2.total_liquidity_atto)/1e18 : "?"} GEN — tx ${String(tx)} — https://explorer-studio.genlayer.com/address/${CONTRACT}`.slice(0,700)})
+        setMsg(`Loan #${latest.id} created ✓ — tx ${String(tx).slice(0,18)}`)
+        await fetchLoans()
+      } else {
+        setExplorerResult({status:"pending", payload:`Tx ${String(tx)} sent — waiting finalization, check explorer https://explorer-studio.genlayer.com/address/${CONTRACT}`})
+      }
+      setLoading(null)
     }catch(e:any){
       const raw=getErrMsg(e)||"request failed"
       const m = raw.includes("not owned") ? raw + " — vid milik orang lain, buat vid milikmu via Verify." : raw.includes("not verified") ? raw + " — belum verify, Verify dulu." : raw

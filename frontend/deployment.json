@@ -1,9 +1,9 @@
 {
   "network": "studionet",
   "rpc": "https://studio.genlayer.com/api",
-  "activeContract": "0xDF864A614C0eAaD4aC91817f7F89028F0d864e68",
-  "activeTx": "0x982c56d650a56d73b3503da8ade8e4925f796097df428215f3fcb81076d1b63a",
+  "activeContract": "0x00dB8564b3e7F5850458FbFAcFd523dFF42373B5",
+  "activeTx": "0x146ed07157fe3ded760d66222470f57f5e77c046683d52d9c4ccdaeecb1af8a5",
   "deployer": "lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8",
-  "features": "steward final: expiry fail-closed, fee no double-charge, dispute no create liquidity, 21 PASS",
-  "previous": ["0x737F198B83b57101CF1fcDfA7cf906d69b70E581","0x5489C20bfa015bcFb56beDde1142f37041A87274"]
+  "features": "steward final no local-clock + receipt verify + 22 PASS",
+  "previous": ["0xDF864A614C0eAaD4aC91817f7F89028F0d864e68"]
 }

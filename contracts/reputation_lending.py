@@ -50,22 +50,30 @@ def _independent_url(platform: str, handle: str) -> str:
 
 def _now_ts() -> int:
     try:
-        if hasattr(gl.block, "timestamp"):
-            return int(str(gl.block.timestamp))
-    except Exception:
-        pass
-    try:
-        if hasattr(gl.message, "timestamp"):
-            return int(str(gl.message.timestamp))
-    except Exception:
-        pass
-    try:
-        import datetime
+        from genlayer import gl as _gl2
 
-        return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        if hasattr(_gl2, "block") and hasattr(_gl2.block, "timestamp"):
+            return int(str(_gl2.block.timestamp))
+    except Exception:
+        pass
+    try:
+        from genlayer import gl as _gl3
+
+        if hasattr(_gl3.message, "timestamp"):
+            return int(str(_gl3.message.timestamp))
     except Exception:
         pass
     return 0
+
+
+def _now_ts_testable(contract) -> int:
+    try:
+        v = int(contract.test_timestamp)
+        if v != 0:
+            return v
+    except Exception:
+        pass
+    return _now_ts()
 
 
 def _is_allowed_host(url: str) -> bool:
@@ -195,10 +203,12 @@ class ReputationLending(gl.Contract):
     disputes: TreeMap[u256, Dispute]
     dispute_ids: DynArray[u256]
     last_link_at: TreeMap[Address, u256]
+    test_timestamp: u256
 
     def __init__(self):
         self.owner = gl.message.sender_address
         self.total_liquidity_atto = u256(0)
+        self.test_timestamp = u256(0)
         self.next_loan_id = u256(1)
         self.next_verification_id = u256(1)
         self.platform_fees_atto = u256(0)
@@ -390,7 +400,7 @@ class ReputationLending(gl.Contract):
         if not _handle_in_path(proof_url, handle):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} proof_url path must contain handle @{handle}")
         sender = gl.message.sender_address
-        now = _now_ts()
+        now = _now_ts_testable(self)
         last = self.last_link_at.get(sender, u256(0))
         if int(last) != 0 and now != 0 and (now - int(last)) < 3600:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Cooldown 1h between link_identity")
@@ -661,7 +671,7 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         if interest_bps > 1200:
             interest_bps = 1200
         loan_id = self.next_loan_id
-        now2 = _now_ts()
+        now2 = _now_ts_testable(self)
         expiry_abs = now2 + int(duration_days) * 86400 if now2 != 0 else int(duration_days) * 86400
         expiry = str(expiry_abs)
         self.loans[loan_id] = Loan(
@@ -716,7 +726,7 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not found")
         if loan.status != "active":
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not active")
-        now = _now_ts()
+        now = _now_ts_testable(self)
         try:
             exp = int(loan.expiry_at)
         except Exception:
@@ -740,7 +750,7 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not found")
         if loan.status != "active":
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not active")
-        now = _now_ts()
+        now = _now_ts_testable(self)
         try:
             exp = int(loan.expiry_at)
         except Exception:
@@ -895,3 +905,13 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
         if s < 0 or s > 100:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Score 0-100")
         self.reputation_scores[borrower] = u256(s)
+
+    @gl.public.write
+    def admin_set_test_timestamp(self, ts: u256):
+        if gl.message.sender_address != self.owner:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Only owner")
+        self.test_timestamp = u256(int(ts))
+
+    @gl.public.view
+    def get_test_timestamp(self) -> int:
+        return int(self.test_timestamp)
