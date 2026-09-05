@@ -419,6 +419,11 @@ export default function Page(){
           const m=`[EXPECTED] Verification vid=${vid} not verified. Verify your identity first.`
           setMsg(m); setExplorerResult({status:"rejected", payload:m}); setLoading(null); return
         }
+        const rep:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_reputation", args: [connected as `0x${string}`] }).catch(()=>null)
+        if(v && rep && Number(v.score) !== Number(rep.score) && Number(rep.score)!==0){
+          const m=`[EXPECTED] Verification score stale (${v.score} vs reputation ${rep.score}) — re-assess vid=${vid} dulu (repay +3). Klik Assess lagi.`
+          setMsg(m); setExplorerResult({status:"rejected", payload:m + ` — https://explorer-studio.genlayer.com/address/${CONTRACT}`}); setLoading(null); return
+        }
       }catch{}
       const princ = parseAtto(String(principal))
       const coll = parseAtto(String(required!))
