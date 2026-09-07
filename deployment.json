@@ -1,9 +1,9 @@
 {
-  "network": "studionet",
-  "rpc": "https://studio.genlayer.com/api",
-  "activeContract": "0x8791dFC9DB4E840a09a8078d922b0366A326770a",
-  "activeTx": "0x746e50a43e3ecaa9ed97427eb11d344082d9e314e7ce5267861ae23d63886b57",
-  "deployer": "lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8",
-  "features": "restore datetime fallback (production timestamp) + fail-closed via test_timestamp, 22 PASS",
-  "previous": ["0xD552618d0B9dab00224af9Fe379fB5C12a1b0beb"]
+  \"network\": \"studionet\",
+  \"rpc\": \"https://studio.genlayer.com/api\",
+  \"activeContract\": \"0xD0FC83070b9c8188BABF3b66f8205c510e2CfC89\",
+  \"activeTx\": \"0xf3160e349eee9aeab52f5340edcf85907404ce0d4ecac205cceef0eb5ae9c426\",
+  \"deployer\": \"lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8\",
+  \"features\": \"documented production timestamp + fail-closed + receipt verify, 21 PASS\",
+  \"previous\": [\"0x8791dFC9DB4E840a09a8078d922b0366A326770a\"]
 }

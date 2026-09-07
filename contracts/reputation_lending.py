@@ -49,24 +49,30 @@ def _independent_url(platform: str, handle: str) -> str:
 
 
 def _now_ts() -> int:
-    try:
-        from genlayer import gl as _gl2
-
-        if hasattr(_gl2, "block") and hasattr(_gl2.block, "timestamp"):
-            return int(str(_gl2.block.timestamp))
-    except Exception:
-        pass
-    try:
-        from genlayer import gl as _gl3
-
-        if hasattr(_gl3.message, "timestamp"):
-            return int(str(_gl3.message.timestamp))
-    except Exception:
-        pass
+    # Production timestamp per docs/developers/intelligent-contracts/features/transaction-context:
+    # "Time inside the GenVM is deterministic and pinned to the transaction's timestamp.
+    # The Python standard library's clock is wired to the transaction datetime —
+    # datetime.now(), datetime.now(tz), and time.time() all return the same value across validators."
+    # No host wall-clock is used. Missing timestamp returns 0 so callers fail closed.
     try:
         import datetime
 
         return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    except Exception:
+        pass
+    try:
+        import time
+
+        return int(time.time())
+    except Exception:
+        pass
+    try:
+        from genlayer import gl as _glraw
+
+        iso = _glraw.message_raw["datetime"]
+        import datetime as _dt
+
+        return int(_dt.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp())
     except Exception:
         pass
     return 0
