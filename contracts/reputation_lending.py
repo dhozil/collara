@@ -78,13 +78,7 @@ def _now_ts() -> int:
     return 0
 
 
-def _now_ts_testable(contract) -> int:
-    try:
-        v = int(contract.test_timestamp)
-        if v != 0:
-            return v
-    except Exception:
-        pass
+def _now_ts_testable(contract=None) -> int:
     return _now_ts()
 
 
@@ -215,12 +209,18 @@ class ReputationLending(gl.Contract):
     disputes: TreeMap[u256, Dispute]
     dispute_ids: DynArray[u256]
     last_link_at: TreeMap[Address, u256]
-    test_timestamp: u256
+    total_shares: u256
+    total_interest_earned_atto: u256
+    total_losses_atto: u256
+    deprecated_slot: u256
 
     def __init__(self):
         self.owner = gl.message.sender_address
         self.total_liquidity_atto = u256(0)
-        self.test_timestamp = u256(0)
+        self.total_shares = u256(0)
+        self.total_interest_earned_atto = u256(0)
+        self.total_losses_atto = u256(0)
+        self.deprecated_slot = u256(0)
         self.next_loan_id = u256(1)
         self.next_verification_id = u256(1)
         self.platform_fees_atto = u256(0)
@@ -234,6 +234,9 @@ class ReputationLending(gl.Contract):
             "next_verification_id": int(self.next_verification_id),
             "total_loans": len(self.loan_ids),
             "platform_fees_atto": int(self.platform_fees_atto),
+            "total_shares": int(self.total_shares),
+            "total_interest_earned_atto": int(self.total_interest_earned_atto),
+            "total_losses_atto": int(self.total_losses_atto),
         }
 
     @gl.public.view
@@ -312,7 +315,15 @@ class ReputationLending(gl.Contract):
 
     @gl.public.view
     def get_liquidity(self, account: Address) -> dict:
-        return {"address": str(account), "balance_atto": int(self.liquidity_balances.get(str(account).lower(), u256(0)))}
+        sk = str(account).lower()
+        shares = int(self.liquidity_balances.get(sk, u256(0)))
+        total_sh = int(self.total_shares)
+        total_liq = int(self.total_liquidity_atto)
+        if total_sh == 0:
+            value = 0
+        else:
+            value = (shares * total_liq) // total_sh
+        return {"address": str(account), "shares": shares, "balance_atto": value, "total_shares": total_sh}
 
     @gl.public.view
     def get_all_loans(self) -> list:
@@ -359,8 +370,17 @@ class ReputationLending(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Deposit amount must be > 0")
         sender = gl.message.sender_address
         sk = str(sender).lower()
+        total_sh = int(self.total_shares)
+        total_liq = int(self.total_liquidity_atto)
+        if total_sh == 0 or total_liq == 0:
+            minted = int(amount)
+        else:
+            minted = (int(amount) * total_sh) // total_liq
+        if minted == 0:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Deposit too small for share price")
         prev = self.liquidity_balances.get(sk, u256(0))
-        self.liquidity_balances[sk] = prev + amount
+        self.liquidity_balances[sk] = prev + u256(minted)
+        self.total_shares = self.total_shares + u256(minted)
         self.total_liquidity_atto = self.total_liquidity_atto + amount
 
     @gl.public.write
@@ -369,12 +389,23 @@ class ReputationLending(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Amount must be > 0")
         sender = gl.message.sender_address
         sk = str(sender).lower()
-        bal = self.liquidity_balances.get(sk, u256(0))
-        if bal < amount_atto:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Insufficient liquidity balance")
+        total_sh = int(self.total_shares)
+        total_liq = int(self.total_liquidity_atto)
+        if total_sh == 0 or total_liq == 0:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Pool empty")
+        shares_bal = int(self.liquidity_balances.get(sk, u256(0)))
+        max_out = (shares_bal * total_liq) // total_sh
+        if int(amount_atto) > max_out:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Insufficient share value")
         if self.total_liquidity_atto < amount_atto:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Pool insufficient")
-        self.liquidity_balances[sk] = bal - amount_atto
+        shares_needed = (int(amount_atto) * total_sh) // total_liq
+        if shares_needed == 0:
+            shares_needed = 1
+        if shares_needed > shares_bal:
+            shares_needed = shares_bal
+        self.liquidity_balances[sk] = u256(shares_bal - shares_needed)
+        self.total_shares = self.total_shares - u256(shares_needed)
         self.total_liquidity_atto = self.total_liquidity_atto - amount_atto
         _EoaTransfer(sender).emit_transfer(value=amount_atto)
 
@@ -726,6 +757,7 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         loan.status = "repaid"
         self.loans[loan_id] = loan
         self.total_liquidity_atto = self.total_liquidity_atto + loan.principal_atto + (interest - fee)
+        self.total_interest_earned_atto = self.total_interest_earned_atto + (interest - fee)
         self.platform_fees_atto = self.platform_fees_atto + fee
         _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
         cur = int(self.reputation_scores.get(sender, u256(50)))
@@ -754,6 +786,10 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         loan.status = "liquidated"
         self.loans[loan_id] = loan
         self.total_liquidity_atto = self.total_liquidity_atto + loan.collateral_atto
+        shortfall = 0
+        if int(loan.principal_atto) > int(loan.collateral_atto):
+            shortfall = int(loan.principal_atto) - int(loan.collateral_atto)
+            self.total_losses_atto = self.total_losses_atto + u256(shortfall)
         penalty = 15 if score >= 15 else score
         self.reputation_scores[borrower] = u256(score - penalty)
 
@@ -776,6 +812,8 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         loan.status = "defaulted"
         self.loans[loan_id] = loan
         self.total_liquidity_atto = self.total_liquidity_atto + loan.collateral_atto
+        if int(loan.principal_atto) > int(loan.collateral_atto):
+            self.total_losses_atto = self.total_losses_atto + u256(int(loan.principal_atto) - int(loan.collateral_atto))
         borrower = loan.borrower
         score = int(self.reputation_scores.get(borrower, u256(50)))
         penalty = 15 if score >= 15 else score
@@ -896,8 +934,9 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
         d.status = "resolved_" + verdict
         self.disputes[dispute_id] = d
         if verdict == "borrower_win":
-            loan.status = "repaid"
+            loan.status = "forgiven"
             self.loans[d.loan_id] = loan
+            self.total_losses_atto = self.total_losses_atto + loan.principal_atto
             _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
             cur = int(self.reputation_scores.get(loan.borrower, u256(50)))
             if cur < 97:
@@ -906,6 +945,8 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
             loan.status = "liquidated"
             self.loans[d.loan_id] = loan
             self.total_liquidity_atto = self.total_liquidity_atto + loan.collateral_atto
+            if int(loan.principal_atto) > int(loan.collateral_atto):
+                self.total_losses_atto = self.total_losses_atto + u256(int(loan.principal_atto) - int(loan.collateral_atto))
             cur = int(self.reputation_scores.get(loan.borrower, u256(50)))
             pen = 15 if cur >= 15 else cur
             self.reputation_scores[loan.borrower] = u256(cur - pen)
@@ -920,12 +961,12 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Score 0-100")
         self.reputation_scores[borrower] = u256(s)
 
-    @gl.public.write
-    def admin_set_test_timestamp(self, ts: u256):
-        if gl.message.sender_address != self.owner:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Only owner")
-        self.test_timestamp = u256(int(ts))
-
     @gl.public.view
-    def get_test_timestamp(self) -> int:
-        return int(self.test_timestamp)
+    def get_share_price(self) -> dict:
+        total_sh = int(self.total_shares)
+        total_liq = int(self.total_liquidity_atto)
+        if total_sh == 0:
+            price = 0
+        else:
+            price = (total_liq * 1000000) // total_sh
+        return {"total_shares": total_sh, "total_liquidity_atto": total_liq, "share_price_1e6": price, "total_losses_atto": int(self.total_losses_atto), "total_interest_earned_atto": int(self.total_interest_earned_atto)}

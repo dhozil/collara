@@ -202,7 +202,8 @@ def test_timeout_settle_escapes_locked_funds(direct_deploy, direct_vm):
     direct_vm.value = 0
     loan = c.get_loan(1)
     expiry = int(loan["expiry_at"])
-    c.admin_set_test_timestamp(expiry + 1)
+    import datetime
+    direct_vm.warp(datetime.datetime.fromtimestamp(expiry + 1, tz=datetime.timezone.utc).isoformat().replace("+00:00", "Z"))
     c.timeout_settle(1)
     assert c.get_loan(1)["status"] == "defaulted"
     from genlayer.py.types import Address
@@ -324,7 +325,7 @@ def test_dispute_authenticated_and_verdict(direct_deploy, direct_vm):
     direct_vm.mock_llm(r".*", json.dumps({"verdict": "borrower_win", "reason": "evidence supports borrower"}))
     verdict = c.resolve_dispute(did)
     assert verdict == "borrower_win"
-    assert c.get_loan(1)["status"] == "repaid"
+    assert c.get_loan(1)["status"] == "forgiven"
     assert c.get_dispute(did)["verdict"] == "borrower_win"
     try:
         c.resolve_dispute(did)
