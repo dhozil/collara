@@ -230,6 +230,101 @@ def test_borrower_win_dispute_does_not_create_liquidity(direct_deploy, direct_vm
     assert c.get_pool_stats()["total_losses_atto"] == 1_000_000_000_000_000_000
 
 
+def test_multi_lender_shortfall_haircut_and_withdraw(direct_deploy, direct_vm):
+    c = direct_deploy("contracts/reputation_lending.py")
+    from genlayer.py.types import Address
+    lender_a = Address(_addr(41))
+    lender_b = Address(_addr(42))
+    with direct_vm.prank(lender_a):
+        direct_vm.value = 6_000_000_000_000_000_000
+        c.deposit_liquidity()
+        direct_vm.value = 0
+    with direct_vm.prank(lender_b):
+        direct_vm.value = 4_000_000_000_000_000_000
+        c.deposit_liquidity()
+        direct_vm.value = 0
+    borrower = Address(_addr(43))
+    with direct_vm.prank(borrower):
+        direct_vm.mock_web(r".*", {"status": 200, "body": "proof", "method": "GET"})
+        direct_vm.mock_llm(r".*", json.dumps({"verified": True, "handle_match": True, "proof_fetched": True, "independent_fetched": True, "wallet_match": True, "reason": "ok"}))
+        vid = c.link_identity(handle="haircut", platform="x", proof_url="https://x.com/haircut/status/1")
+    with direct_vm.prank(borrower):
+        direct_vm.clear_mocks()
+        direct_vm.mock_web(r".*", {"status": 200, "body": "proof", "method": "GET"})
+        direct_vm.mock_llm(r".*", json.dumps({"score": 80, "reason": "ok", "proof_fetched": True, "independent_fetched": True}))
+        c.assess_reputation(vid)
+    with direct_vm.prank(borrower):
+        direct_vm.value = 700_000_000_000_000_000
+        c.request_loan(verification_id=vid, principal_atto=1_000_000_000_000_000_000, collateral_atto=700_000_000_000_000_000, duration_days=1)
+        direct_vm.value = 0
+    loan = c.get_loan(1)
+    _warp_to(direct_vm, int(loan["expiry_at"]) + 1)
+    c.liquidate_loan(1)
+    assert c.get_pool_stats()["total_losses_atto"] == 300_000_000_000_000_000
+    pool = c.get_pool_stats()["total_liquidity_atto"]
+    assert pool == 9_700_000_000_000_000_000
+    a_val = c.get_liquidity(lender_a)["balance_atto"]
+    b_val = c.get_liquidity(lender_b)["balance_atto"]
+    assert a_val + b_val == pool
+    assert a_val == (pool * 6) // 10
+    assert b_val == (pool * 4) // 10
+    with direct_vm.prank(lender_a):
+        c.withdraw_liquidity(a_val)
+    with direct_vm.prank(lender_b):
+        c.withdraw_liquidity(b_val)
+    assert c.get_pool_stats()["total_liquidity_atto"] == 0
+    assert c.get_pool_stats()["total_shares"] == 0
+
+
+def test_multi_lender_borrower_win_solvency(direct_deploy, direct_vm):
+    c = direct_deploy("contracts/reputation_lending.py")
+    from genlayer.py.types import Address
+    lender_a = Address(_addr(51))
+    lender_b = Address(_addr(52))
+    with direct_vm.prank(lender_a):
+        direct_vm.value = 6_000_000_000_000_000_000
+        c.deposit_liquidity()
+        direct_vm.value = 0
+    with direct_vm.prank(lender_b):
+        direct_vm.value = 4_000_000_000_000_000_000
+        c.deposit_liquidity()
+        direct_vm.value = 0
+    borrower = Address(_addr(53))
+    with direct_vm.prank(borrower):
+        direct_vm.mock_web(r".*", {"status": 200, "body": "proof", "method": "GET"})
+        direct_vm.mock_llm(r".*", json.dumps({"verified": True, "handle_match": True, "proof_fetched": True, "independent_fetched": True, "wallet_match": True, "reason": "ok"}))
+        vid = c.link_identity(handle="solvency", platform="x", proof_url="https://x.com/solvency/status/1")
+    with direct_vm.prank(borrower):
+        direct_vm.clear_mocks()
+        direct_vm.mock_web(r".*", {"status": 200, "body": "proof", "method": "GET"})
+        direct_vm.mock_llm(r".*", json.dumps({"score": 70, "reason": "ok", "proof_fetched": True, "independent_fetched": True}))
+        c.assess_reputation(vid)
+    with direct_vm.prank(borrower):
+        direct_vm.value = 800_000_000_000_000_000
+        c.request_loan(verification_id=vid, principal_atto=1_000_000_000_000_000_000, collateral_atto=800_000_000_000_000_000, duration_days=30)
+        direct_vm.value = 0
+    pool_after_loan = c.get_pool_stats()["total_liquidity_atto"]
+    assert pool_after_loan == 9_000_000_000_000_000_000
+    with direct_vm.prank(borrower):
+        did = c.submit_dispute(loan_id=1, evidence_url="https://x.com/dave/status/1ispute", reason="forgiven case")
+    direct_vm.clear_mocks()
+    direct_vm.mock_web(r".*", {"status": 200, "body": "evidence", "method": "GET"})
+    direct_vm.mock_llm(r".*", json.dumps({"verdict": "borrower_win", "reason": "ok"}))
+    assert c.resolve_dispute(did) == "borrower_win"
+    assert c.get_loan(1)["status"] == "forgiven"
+    assert c.get_pool_stats()["total_liquidity_atto"] == pool_after_loan
+    assert c.get_pool_stats()["total_losses_atto"] == 1_000_000_000_000_000_000
+    a_val = c.get_liquidity(lender_a)["balance_atto"]
+    b_val = c.get_liquidity(lender_b)["balance_atto"]
+    assert a_val + b_val == pool_after_loan
+    assert a_val == (pool_after_loan * 6) // 10
+    with direct_vm.prank(lender_a):
+        c.withdraw_liquidity(a_val)
+    with direct_vm.prank(lender_b):
+        c.withdraw_liquidity(b_val)
+    assert c.get_pool_stats()["total_liquidity_atto"] == 0
+
+
 def test_expiry_absolute_and_liquidation_after_expiry(direct_deploy, direct_vm):
     c = direct_deploy("contracts/reputation_lending.py")
     direct_vm.value = 10_000_000_000_000_000_000

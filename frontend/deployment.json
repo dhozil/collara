@@ -1,9 +1,9 @@
 {
   \"network\": \"studionet\",
   \"rpc\": \"https://studio.genlayer.com/api\",
-  \"activeContract\": \"0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB\",
-  \"activeTx\": \"0x296200a7ba65dea061ca8c2d6beb4535798ab9eef4fb20374ca99f846f2dc231\",
+  \"activeContract\": \"0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46\",
+  \"activeTx\": \"0x4d0764ee879d9e64dbaa08b529f6ecf95b6e7494df219b6fd296b030d09794d8\",
   \"deployer\": \"lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8\",
-  \"features\": \"share pool + no owner timestamp + multi-lender solvency 24 PASS\",
-  \"previous\": [\"0xD0FC83070b9c8188BABF3b66f8205c510e2CfC89\"]
+  \"features\": \"share pool + no owner timestamp + multi-lender solvency 26 PASS\",
+  \"previous\": [\"0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB\"]
 }

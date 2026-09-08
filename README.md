@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://github.com/dhozil/collara"><img src="https://img.shields.io/github/stars/dhozil/collara?style=flat&label=Stars" alt="stars"/></a>
   <img src="https://img.shields.io/badge/GenLayer-Studionet%2061999-0F0E0D?style=flat" alt="studionet"/>
-  <img src="https://img.shields.io/badge/Contract-0xDF864…e68-C8A25A?style=flat" alt="contract"/>
+  <img src="https://img.shields.io/badge/Contract-0xCD9F…AD46-C8A25A?style=flat" alt="contract"/>
   <img src="https://img.shields.io/badge/Frontend-Next.js_14-black?style=flat" alt="next"/>
   <img src="https://img.shields.io/badge/License-MIT-F2EFE7?style=flat" alt="license"/>
 </p>
@@ -23,8 +23,8 @@
 
 | | |
 |---|---|
-| **Contract** | `0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB` — [Explorer](https://explorer-studio.genlayer.com/address/0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB) |
-| **Tx** | `0xca725a9bd94b615e6015872845cf40172cdc72668f99e5e0fed0e686e84a06e7` — 5/5 AGREE |
+| **Contract** | `0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46` — [Explorer](https://explorer-studio.genlayer.com/address/0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46) |
+| **Tx** | `0x4d0764ee879d9e64dbaa08b529f6ecf95b6e7494df219b6fd296b030d09794d8` — 3/5 AGREE |
 | **Deployer** | `lending-clean` `0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8` |
 | **Chain** | Studionet `61999` → `/api/genlayer` proxy (no CORS) |
 | **Runner** | `py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6` |
@@ -99,7 +99,7 @@ genlayer deploy --contract contracts/reputation_lending.py
 cd frontend
 npm install
 cat > .env.local <<'ENV'
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB
+NEXT_PUBLIC_CONTRACT_ADDRESS=0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46
 NEXT_PUBLIC_RPC_URL=https://studio.genlayer.com/api
 NEXT_PUBLIC_NETWORK=studionet
 ENV
@@ -112,7 +112,7 @@ npm run build
 Set in Vercel → Settings → Environment Variables:
 
 ```
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB
+NEXT_PUBLIC_CONTRACT_ADDRESS=0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46
 NEXT_PUBLIC_RPC_URL=https://studio.genlayer.com/api
 NEXT_PUBLIC_NETWORK=studionet
 NEXT_PUBLIC_OWNER=0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8

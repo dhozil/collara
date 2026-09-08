@@ -79,6 +79,8 @@ def _now_ts() -> int:
 
 
 def _now_ts_testable(contract=None) -> int:
+    # Thin alias kept for call-site readability; timestamp source is _now_ts() only.
+    # No owner-controlled override exists.
     return _now_ts()
 
 
@@ -212,7 +214,6 @@ class ReputationLending(gl.Contract):
     total_shares: u256
     total_interest_earned_atto: u256
     total_losses_atto: u256
-    deprecated_slot: u256
 
     def __init__(self):
         self.owner = gl.message.sender_address
@@ -220,7 +221,6 @@ class ReputationLending(gl.Contract):
         self.total_shares = u256(0)
         self.total_interest_earned_atto = u256(0)
         self.total_losses_atto = u256(0)
-        self.deprecated_slot = u256(0)
         self.next_loan_id = u256(1)
         self.next_verification_id = u256(1)
         self.platform_fees_atto = u256(0)
@@ -445,8 +445,11 @@ class ReputationLending(gl.Contract):
         sender = gl.message.sender_address
         now = _now_ts_testable(self)
         last = self.last_link_at.get(sender, u256(0))
-        if int(last) != 0 and now != 0 and (now - int(last)) < 3600:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Cooldown 1h between link_identity")
+        if int(last) != 0:
+            if now == 0:
+                raise gl.vm.UserError(f"{ERROR_EXPECTED} Cannot verify cooldown — no valid production timestamp")
+            if (now - int(last)) < 3600:
+                raise gl.vm.UserError(f"{ERROR_EXPECTED} Cooldown 1h between link_identity")
         sender_str = str(sender)
         proof_url_snapshot = proof_url
         handle_snapshot = handle
