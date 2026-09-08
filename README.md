@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://collara.vercel.app"><strong>▶ Live Demo — collara.vercel.app</strong></a> &nbsp;·&nbsp; <a href="#quick-start">Quick Start</a> &nbsp;·&nbsp; <a href="#how-it-works">How it Works</a>
+  <a href="https://collara-finance.vercel.app"><strong>▶ Live Demo — collara-finance.vercel.app</strong></a> &nbsp;·&nbsp; <a href="#quick-start">Quick Start</a> &nbsp;·&nbsp; <a href="#how-it-works">How it Works</a>
 </p>
 
 ---
