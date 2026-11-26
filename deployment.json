@@ -1,9 +1,9 @@
 {
   "network": "studionet",
   "rpc": "https://studio.genlayer.com/api",
-  "activeContract": "0x535C3f9398529f49e00468EE3259acb843646C04",
-  "activeTx": "0x766e8bee4872a3a2a653189061adfbf15f45b95b19ba5fbe709f4b437a3fd2f4",
-  "deployer": "cpe-deploy 0xD0B8fFA6ea2572D2a8F16512CAbB21eCFe6ea48b",
+  "activeContract": "0x66EA6883d22cE2B851C94c3e9fCAd1c328dDC043",
+  "activeTx": "0xfb713ba4909c37aafd02967dc9085276b74f093f2860e6cefbca63b9582e0cd4",
+  "deployer": "seller-wallet D:\\Genlayer-project\\wallet (0x99bF44395CaC814E671ADFF8b69d968Fac4e5Db3)",
   "features": "milestone: borrower profile + top-up collateral + enriched loans, 30 PASS, v0.6 fees deploy",
-  "previous": ["0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46"]
+  "previous": ["0x535C3f9398529f49e00468EE3259acb843646C04"]
 }

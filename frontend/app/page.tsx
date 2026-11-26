@@ -5,7 +5,7 @@ import { studionet as glStudionet } from "genlayer-js/chains"
 
 type Tab = "overview"|"how"|"identity"|"market"|"loans"|"vault"
 const brass = "#C8A25A"
-const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x535C3f9398529f49e00468EE3259acb843646C04"
+const CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x66EA6883d22cE2B851C94c3e9fCAd1c328dDC043"
 const getRpcUrl = () => (typeof window !== "undefined" ? "/api/genlayer" : (process.env.NEXT_PUBLIC_RPC_URL || "https://studio.genlayer.com/api"))
 const getStudionet = () => ({ ...glStudionet, rpcUrls: { default: { http: [getRpcUrl()] } } } as any)
 
