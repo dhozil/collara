@@ -60,6 +60,7 @@ export default function Page(){
   const [pool, setPool] = useState<{tvl:string,count:number,fees:string}|null>(null)
   const [myLiq, setMyLiq] = useState<string>("0.000")
   const [myLoans, setMyLoans] = useState<any[]>([])
+  const [profile, setProfile] = useState<any>(null)
   const [msg, setMsg] = useState<string>("")
   const [loading, setLoading] = useState<string | null>(null)
   const [explorerResult, setExplorerResult] = useState<{status:string, payload:string} | null>(null)
@@ -156,6 +157,7 @@ export default function Page(){
         setMyLoans(enriched)
         setMsg(`Fetched ${r.length} loans on-chain (${mine.length} yours)`)
       }
+      await fetchProfile().catch(()=>{})
     }catch(e:any){ setMsg(e.message?.slice(0,150) || "fetch loans failed")}
   }
   async function fetchMyLiq(){
@@ -167,6 +169,15 @@ export default function Page(){
       if(r && r.balance_atto!==undefined) setMyLiq((Number(r.balance_atto)/1e18).toFixed(3))
       else setMyLiq("0.000")
     }catch{ setMyLiq("0.000") }
+  }
+  async function fetchProfile(){
+    const who = connected as string | null
+    if(!who) { setProfile(null); return }
+    try{
+      const c = await ensureClient()
+      const p:any = await c.readContract({ address: CONTRACT as `0x${string}`, functionName: "get_borrower_profile", args: [who as `0x${string}`] })
+      setProfile(p)
+    }catch{ /* profile view optional */ }
   }
   const [fetchingIdentity, setFetchingIdentity] = useState(false)
   const fetchedForRef = useState<{addr:string|null}>({addr:null})[0]
@@ -244,6 +255,7 @@ export default function Page(){
   useEffect(()=>{ if(connected && tab==="vault") fetchMyLiq() },[connected, tab])
   useEffect(()=>{ if(connected && tab==="loans") fetchLoans() },[connected, tab])
   useEffect(()=>{ if(connected && tab==="identity" && fetchedForRef.addr!==connected) fetchIdentity(false) },[connected, tab])
+  useEffect(()=>{ if(connected && (tab==="identity" || tab==="vault" || tab==="loans")) fetchProfile() },[connected, tab])
 
   function isAllowedHost(url:string){
     try{
@@ -755,6 +767,25 @@ export default function Page(){
                       ))}
                     </div>
                   </div>
+
+                  <div className="rounded-2xl bg-white border border-stone/10 p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] tracking-[0.1em] uppercase text-stone/50">Borrower credit profile — on-chain</div>
+                      <button onClick={fetchProfile} className="text-[11px] px-2 py-1 rounded-full bg-parchment border border-stone/15">Refresh</button>
+                    </div>
+                    {profile ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-xl bg-parchment p-3 border border-stone/10"><div className="text-stone/50">Borrowed</div><div className="font-mono font-medium">{fmtGen(profile.total_borrowed_atto||0)} GEN</div></div>
+                        <div className="rounded-xl bg-parchment p-3 border border-stone/10"><div className="text-stone/50">Repaid</div><div className="font-mono font-medium">{fmtGen(profile.total_repaid_atto||0)} GEN</div></div>
+                        <div className="rounded-xl bg-parchment p-3 border border-stone/10"><div className="text-stone/50">Interest paid</div><div className="font-mono font-medium">{fmtGen(profile.total_interest_paid_atto||0)} GEN</div></div>
+                        <div className="rounded-xl bg-parchment p-3 border border-stone/10"><div className="text-stone/50">Active loans</div><div className="font-mono font-medium">{String(profile.active_loans||0)}</div></div>
+                        <div className="rounded-xl bg-parchment p-3 border border-stone/10"><div className="text-stone/50">Repaid / Defaulted</div><div className="font-mono font-medium">{String(profile.loans_repaid||0)} / {String(profile.loans_defaulted||0)}</div></div>
+                        <div className="rounded-xl bg-parchment p-3 border border-stone/10"><div className="text-stone/50">Liquidated / Forgiven</div><div className="font-mono font-medium">{String(profile.loans_liquidated||0)} / {String(profile.loans_forgiven||0)}</div></div>
+                      </div>
+                    ) : (
+                      <div className="mt-3 text-xs text-stone/50">Connect wallet and refresh to load on-chain credit history.</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -840,7 +871,7 @@ export default function Page(){
                         <div className="min-w-[180px]">
                           <div className="text-xs font-mono">Loan #{String(l.id)} • <span className={`px-2 py-0.5 rounded-full text-[11px] ${String(l.status)==="active"?"bg-sage/15 text-sage":String(l.status)==="repaid"?"bg-brass/20 text-ink":"bg-stone/10"}`}>{String(l.status)}</span></div>
                           <div className="text-sm mt-1"><span className="font-mono font-medium">{fmtGen(l.principal_atto)} GEN</span> <span className="text-stone/50">principal</span> • <span className="font-mono">{fmtGen(l.collateral_atto||0)} GEN collateral</span></div>
-                          <div className="text-xs text-stone/50 font-mono">score {String(l.reputation_score||"?")} • {Number(l.interest_bps||0)/100}% • {String(l.duration_days||"?")}d • {String(l.borrower).slice(0,10)}…</div>
+                          <div className="text-xs text-stone/50 font-mono">score {String(l.reputation_score||"?")} • {Number(l.interest_bps||0)/100}% • due {fmtGen(l.total_due_atto || (toBigInt(l.principal_atto) + (toBigInt(l.principal_atto)*toBigInt(l.interest_bps||0))/toBigInt(10000)))} GEN • {String(l.duration_days||"?")}d • {String(l.borrower).slice(0,10)}…</div>
                         </div>
                         <div className="ml-auto flex gap-2">
                           <button disabled={String(l.status)!=="active" || loading==="repay"} onClick={async()=>{
@@ -879,6 +910,25 @@ export default function Page(){
                             }catch(e:any){ const m=getErrMsg(e)||"liquidate failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m})}
                             setLoading(null)
                           }} className="px-4 py-2 rounded-xl bg-oxblood text-white text-xs font-medium disabled:opacity-40">Liquidate</button>
+                          <button disabled={String(l.status)!=="active" || loading==="topup"} onClick={async()=>{
+                            const raw = window.prompt("Top up collateral (GEN), e.g. 0.2")
+                            if(!raw) return
+                            const atto = parseAtto(raw)
+                            if(atto<=BigInt(0)){ setMsg("Invalid top-up amount"); return }
+                            setLoading("topup"); setMsg(""); setExplorerResult(null)
+                            try{
+                              const c = await getWriteClient()
+                              const tx = await c.writeContract({ address: CONTRACT as `0x${string}`, functionName: "top_up_collateral", args: [toBigInt(l.id)], value: atto })
+                              setMsg(`top_up #${l.id} tx ${String(tx).slice(0,18)}… waiting finality`)
+                              setExplorerResult({status:"pending", payload:`Top up #${l.id} ${raw} GEN — tx ${String(tx).slice(0,18)}… waiting receipt`})
+                              const receipt:any = await (c as any).waitForTransactionReceipt?.({hash: tx}) || await new Promise(r=>setTimeout(r,8000))
+                              if(receipt && receipt.txExecutionResultName && receipt.txExecutionResultName!=="FINISHED_WITH_RETURN") throw new Error(`Top up failed: ${receipt.statusName}/${receipt.txExecutionResultName}`)
+                              const loan2:any = await c.readContract({address:CONTRACT, functionName:"get_loan", args:[toBigInt(l.id)]}).catch(()=>null)
+                              if(loan2) setExplorerResult({status:"verified", payload:`Top up #${l.id} confirmed — collateral now ${fmtGen(loan2.collateral_atto)} GEN — tx ${String(tx)}`})
+                              await fetchLoans()
+                            }catch(e:any){ const m=getErrMsg(e)||"top up failed"; setMsg(m); setExplorerResult({status:"rejected", payload:m}) }
+                            setLoading(null)
+                          }} className="px-4 py-2 rounded-xl bg-white border border-stone/15 text-xs font-medium disabled:opacity-40">Top up</button>
                         </div>
                       </div>
                     ))}

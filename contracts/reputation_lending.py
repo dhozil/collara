@@ -133,6 +133,21 @@ class Dispute:
     created_at: str
 
 
+@allow_storage
+@dataclass
+class BorrowerProfile:
+    total_borrowed_atto: u256
+    total_repaid_atto: u256
+    total_interest_paid_atto: u256
+    loans_requested: u256
+    loans_repaid: u256
+    loans_defaulted: u256
+    loans_liquidated: u256
+    loans_forgiven: u256
+    active_loans: u256
+    last_score: u256
+
+
 def _clean_json(text: str) -> dict:
     first = text.find("{")
     last = text.rfind("}")
@@ -211,6 +226,7 @@ class ReputationLending(gl.Contract):
     disputes: TreeMap[u256, Dispute]
     dispute_ids: DynArray[u256]
     last_link_at: TreeMap[Address, u256]
+    borrower_profiles: TreeMap[Address, BorrowerProfile]
     total_shares: u256
     total_interest_earned_atto: u256
     total_losses_atto: u256
@@ -297,6 +313,15 @@ class ReputationLending(gl.Contract):
         loan = self.loans.get(loan_id, None)
         if loan is None:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not found")
+        interest = (int(loan.principal_atto) * int(loan.interest_bps)) // 10000
+        fee = interest // 10
+        total_due = int(loan.principal_atto) + interest
+        now = _now_ts()
+        try:
+            exp = int(loan.expiry_at)
+        except Exception:
+            exp = 0
+        is_expired = bool(now != 0 and exp != 0 and now >= exp and loan.status == "active")
         return {
             "id": int(loan_id),
             "borrower": str(loan.borrower),
@@ -305,12 +330,16 @@ class ReputationLending(gl.Contract):
             "reputation_score": int(loan.reputation_score),
             "collateral_ratio_bps": int(loan.collateral_ratio_bps),
             "interest_bps": int(loan.interest_bps),
+            "interest_atto": interest,
+            "fee_atto": fee,
+            "total_due_atto": total_due,
             "status": loan.status,
             "created_at": loan.created_at,
             "duration_days": int(loan.duration_days),
             "verification_id": int(loan.verification_id),
             "proof_url_snapshot": loan.proof_url_snapshot,
             "expiry_at": loan.expiry_at,
+            "is_expired": is_expired,
         }
 
     @gl.public.view
@@ -331,7 +360,19 @@ class ReputationLending(gl.Contract):
         for lid in self.loan_ids:
             l = self.loans.get(lid, None)
             if l is not None:
-                out.append({"id": int(lid), "borrower": str(l.borrower), "status": l.status, "principal_atto": int(l.principal_atto)})
+                interest = (int(l.principal_atto) * int(l.interest_bps)) // 10000
+                out.append({
+                    "id": int(lid),
+                    "borrower": str(l.borrower),
+                    "status": l.status,
+                    "principal_atto": int(l.principal_atto),
+                    "collateral_atto": int(l.collateral_atto),
+                    "reputation_score": int(l.reputation_score),
+                    "interest_bps": int(l.interest_bps),
+                    "total_due_atto": int(l.principal_atto) + interest,
+                    "duration_days": int(l.duration_days),
+                    "expiry_at": l.expiry_at,
+                })
         return out
 
     @gl.public.view
@@ -739,6 +780,12 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         self.loan_ids.append(loan_id)
         self.next_loan_id = loan_id + u256(1)
         self.total_liquidity_atto = self.total_liquidity_atto - principal_atto
+        p = self._profile_of(sender)
+        p.total_borrowed_atto = p.total_borrowed_atto + principal_atto
+        p.loans_requested = p.loans_requested + u256(1)
+        p.active_loans = p.active_loans + u256(1)
+        p.last_score = u256(s)
+        self.borrower_profiles[sender] = p
         _EoaTransfer(sender).emit_transfer(value=principal_atto)
 
     @gl.public.write.payable
@@ -762,11 +809,20 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         self.total_liquidity_atto = self.total_liquidity_atto + loan.principal_atto + (interest - fee)
         self.total_interest_earned_atto = self.total_interest_earned_atto + (interest - fee)
         self.platform_fees_atto = self.platform_fees_atto + fee
-        _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
+        p = self._profile_of(sender)
+        p.total_repaid_atto = p.total_repaid_atto + loan.principal_atto
+        p.total_interest_paid_atto = p.total_interest_paid_atto + interest
+        p.loans_repaid = p.loans_repaid + u256(1)
+        if int(p.active_loans) > 0:
+            p.active_loans = p.active_loans - u256(1)
         cur = int(self.reputation_scores.get(sender, u256(50)))
         bonus = 3 if cur < 97 else 0
         if bonus:
-            self.reputation_scores[sender] = u256(cur + bonus)
+            cur = cur + bonus
+            self.reputation_scores[sender] = u256(cur)
+        p.last_score = u256(cur)
+        self.borrower_profiles[sender] = p
+        _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
 
     @gl.public.write
     def liquidate_loan(self, loan_id: u256):
@@ -794,7 +850,14 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
             shortfall = int(loan.principal_atto) - int(loan.collateral_atto)
             self.total_losses_atto = self.total_losses_atto + u256(shortfall)
         penalty = 15 if score >= 15 else score
-        self.reputation_scores[borrower] = u256(score - penalty)
+        new_score = score - penalty
+        self.reputation_scores[borrower] = u256(new_score)
+        p = self._profile_of(borrower)
+        p.loans_liquidated = p.loans_liquidated + u256(1)
+        if int(p.active_loans) > 0:
+            p.active_loans = p.active_loans - u256(1)
+        p.last_score = u256(new_score)
+        self.borrower_profiles[borrower] = p
 
     @gl.public.write
     def timeout_settle(self, loan_id: u256):
@@ -820,7 +883,14 @@ Return JSON only: {{"score": <int 0-100>, "reason": "<1 sentence>", "proof_fetch
         borrower = loan.borrower
         score = int(self.reputation_scores.get(borrower, u256(50)))
         penalty = 15 if score >= 15 else score
-        self.reputation_scores[borrower] = u256(score - penalty)
+        new_score = score - penalty
+        self.reputation_scores[borrower] = u256(new_score)
+        p = self._profile_of(borrower)
+        p.loans_defaulted = p.loans_defaulted + u256(1)
+        if int(p.active_loans) > 0:
+            p.active_loans = p.active_loans - u256(1)
+        p.last_score = u256(new_score)
+        self.borrower_profiles[borrower] = p
 
     @gl.public.write
     def submit_dispute(self, loan_id: u256, evidence_url: str, reason: str) -> u256:
@@ -940,10 +1010,17 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
             loan.status = "forgiven"
             self.loans[d.loan_id] = loan
             self.total_losses_atto = self.total_losses_atto + loan.principal_atto
-            _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
             cur = int(self.reputation_scores.get(loan.borrower, u256(50)))
             if cur < 97:
-                self.reputation_scores[loan.borrower] = u256(cur + 2)
+                cur = cur + 2
+                self.reputation_scores[loan.borrower] = u256(cur)
+            p = self._profile_of(loan.borrower)
+            p.loans_forgiven = p.loans_forgiven + u256(1)
+            if int(p.active_loans) > 0:
+                p.active_loans = p.active_loans - u256(1)
+            p.last_score = u256(cur)
+            self.borrower_profiles[loan.borrower] = p
+            _EoaTransfer(loan.borrower).emit_transfer(value=loan.collateral_atto)
         else:
             loan.status = "liquidated"
             self.loans[d.loan_id] = loan
@@ -952,7 +1029,14 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
                 self.total_losses_atto = self.total_losses_atto + u256(int(loan.principal_atto) - int(loan.collateral_atto))
             cur = int(self.reputation_scores.get(loan.borrower, u256(50)))
             pen = 15 if cur >= 15 else cur
-            self.reputation_scores[loan.borrower] = u256(cur - pen)
+            cur = cur - pen
+            self.reputation_scores[loan.borrower] = u256(cur)
+            p = self._profile_of(loan.borrower)
+            p.loans_liquidated = p.loans_liquidated + u256(1)
+            if int(p.active_loans) > 0:
+                p.active_loans = p.active_loans - u256(1)
+            p.last_score = u256(cur)
+            self.borrower_profiles[loan.borrower] = p
         return verdict
 
     @gl.public.write
@@ -963,6 +1047,62 @@ Return JSON only: {{"verdict": "borrower_win" or "lender_win", "reason": "1 sent
         if s < 0 or s > 100:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Score 0-100")
         self.reputation_scores[borrower] = u256(s)
+
+    def _profile_of(self, borrower: Address) -> BorrowerProfile:
+        p = self.borrower_profiles.get(borrower, None)
+        if p is None:
+            return BorrowerProfile(
+                total_borrowed_atto=u256(0),
+                total_repaid_atto=u256(0),
+                total_interest_paid_atto=u256(0),
+                loans_requested=u256(0),
+                loans_repaid=u256(0),
+                loans_defaulted=u256(0),
+                loans_liquidated=u256(0),
+                loans_forgiven=u256(0),
+                active_loans=u256(0),
+                last_score=u256(0),
+            )
+        return p
+
+    @gl.public.view
+    def get_borrower_profile(self, account: Address) -> dict:
+        p = self._profile_of(account)
+        score = int(self.reputation_scores.get(account, u256(0)))
+        ident = self.identity_proofs.get(account, None)
+        return {
+            "address": str(account),
+            "score": score,
+            "has_verified_identity": bool(ident is not None and ident.verified),
+            "handle": ident.handle if ident else "",
+            "platform": ident.platform if ident else "",
+            "total_borrowed_atto": int(p.total_borrowed_atto),
+            "total_repaid_atto": int(p.total_repaid_atto),
+            "total_interest_paid_atto": int(p.total_interest_paid_atto),
+            "loans_requested": int(p.loans_requested),
+            "loans_repaid": int(p.loans_repaid),
+            "loans_defaulted": int(p.loans_defaulted),
+            "loans_liquidated": int(p.loans_liquidated),
+            "loans_forgiven": int(p.loans_forgiven),
+            "active_loans": int(p.active_loans),
+            "last_score": int(p.last_score),
+        }
+
+    @gl.public.write.payable
+    def top_up_collateral(self, loan_id: u256):
+        loan = self.loans.get(loan_id, None)
+        if loan is None:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not found")
+        if loan.status != "active":
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Loan not active")
+        sender = gl.message.sender_address
+        if loan.borrower != sender:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Only borrower can top up")
+        amount = u256(gl.message.value)
+        if amount == u256(0):
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Top-up amount must be > 0")
+        loan.collateral_atto = loan.collateral_atto + amount
+        self.loans[loan_id] = loan
 
     @gl.public.view
     def get_share_price(self) -> dict:
