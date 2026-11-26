@@ -1,9 +1,9 @@
 {
-  \"network\": \"studionet\",
-  \"rpc\": \"https://studio.genlayer.com/api\",
-  \"activeContract\": \"0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46\",
-  \"activeTx\": \"0x4d0764ee879d9e64dbaa08b529f6ecf95b6e7494df219b6fd296b030d09794d8\",
-  \"deployer\": \"lending-clean 0x3aac4333f9c2ab79ebd78e31a12b26ec10c675e8\",
-  \"features\": \"share pool + no owner timestamp + multi-lender solvency 26 PASS\",
-  \"previous\": [\"0xE9f4DF6a34D3f90A20cA03EE2cDeFf471c6dcaBB\"]
+  "network": "studionet",
+  "rpc": "https://studio.genlayer.com/api",
+  "activeContract": "0x535C3f9398529f49e00468EE3259acb843646C04",
+  "activeTx": "0x766e8bee4872a3a2a653189061adfbf15f45b95b19ba5fbe709f4b437a3fd2f4",
+  "deployer": "cpe-deploy 0xD0B8fFA6ea2572D2a8F16512CAbB21eCFe6ea48b",
+  "features": "milestone: borrower profile + top-up collateral + enriched loans, 30 PASS, v0.6 fees deploy",
+  "previous": ["0xCD9FeD20d21F6Eea762Abf359eC40Df52AA8AD46"]
 }
